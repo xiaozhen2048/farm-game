@@ -1,0 +1,7 @@
+node_modules/
+.claude/
+*.py
+assets/
+generate_pptx.js
+package-lock.json
+package.json
