@@ -53,8 +53,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;touch-action
 .abtn.check{background:linear-gradient(135deg,#6bc5ff,#339af0);color:#fff}
 .abtn.rest{background:linear-gradient(135deg,#ffd700,#e8a800);color:#1a1a2e}
 #hint{position:absolute;bottom:max(78px,calc(env(safe-area-inset-bottom) + 60px));left:50%;transform:translateX(-50%);color:#ffd700;font-size:12px;pointer-events:none;text-align:center;white-space:nowrap;text-shadow:0 0 6px rgba(0,0,0,0.7);font-weight:bold;z-index:5}
-#load-panel{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;z-index:30;background:#1a1a2e;pointer-events:auto}
-#load-panel div{color:#ffd700;font-size:18px;font-weight:bold}
+#load-panel{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:30;background:#1a1a2e;pointer-events:auto}
+#load-panel .ltxt{color:#ffd700;font-size:16px;font-weight:bold;margin-bottom:12px}
+#load-panel .lbar{width:200px;height:6px;background:rgba(255,255,255,0.15);border-radius:3px;overflow:hidden}
+#load-panel .lfill{height:100%;background:linear-gradient(90deg,#ffd700,#ff922b);border-radius:3px;width:0%;transition:width 0.15s}
 </style>
 </head>
 <body>
@@ -85,7 +87,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;touch-action
   </div></div>
 </div>
 <div id="hint"></div>
-<div id="load-panel"><div>🎨 加载素材中...</div></div>
+<div id="load-panel"><div class="ltxt">🎨 加载素材中...</div><div class="lbar"><div class="lfill" id="load-fill"></div></div></div>
 <div id="actions">
   <button class="abtn scan on" id="btn-scan">📷 扫码</button>
   <button class="abtn bag" id="btn-bag">🛍️ 装袋</button>
@@ -139,8 +141,8 @@ const IMG_LIST={
 const CHAR_KEYS=['office','student','auntie','smiley','difficult','drunk','blogger','kid','thief'];
 const ITEM_KEYS=['sandwich','onigiri','coffee','chips','chocolate','bento','icecream','beer','water','gum','baozi','oden'];
 
-CHAR_KEYS.forEach(k=>{IMG_LIST['char_'+k]='assets/processed/char-'+k+'.png'});
-ITEM_KEYS.forEach(k=>{IMG_LIST['item_'+k]='assets/processed/item-'+k+'.png'});
+// removed - now embedded
+// removed - now embedded
 
 function loadImages(){
   // All images embedded as base64 — resolve immediately
@@ -156,9 +158,83 @@ function loadImages(){
 function onAllLoaded(){if(window._imgResolve){window._imgResolve();window._imgResolve=null}}
 
 // ─── AUDIO ──────────────────────────────
-let AC=null;
-function B(f,d,t='square',v=0.04){if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();const ct=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(v,ct);g.gain.exponentialRampToValueAtTime(0.001,ct+d);o.connect(g);g.connect(AC.destination);o.start(ct);o.stop(ct+d)}
-function sBeep(){B(1200,0.06,'sine',0.04)}function sPay(){B(800,0.08,'triangle',0.05);setTimeout(()=>B(1000,0.08,'triangle',0.05),100)}function sBad(){B(120,0.25,'sawtooth',0.06)}function sCat(){B(600,0.08,'triangle',0.04);setTimeout(()=>B(800,0.08,'triangle',0.04),100);setTimeout(()=>B(1000,0.12,'triangle',0.04),200)}function sThief(){B(180,0.2,'sawtooth',0.05);setTimeout(()=>B(130,0.3,'sawtooth',0.05),200)}function sTip(){B(523,0.08,'triangle',0.04);setTimeout(()=>B(659,0.08,'triangle',0.04),80);setTimeout(()=>B(784,0.1,'triangle',0.04),160)}function sClean(){for(let i=0;i<5;i++)setTimeout(()=>B(300+Math.random()*200,0.03,'sine',0.015),i*60)}function sStock(){B(600,0.06,'triangle',0.04);setTimeout(()=>B(800,0.06,'triangle',0.04),100)}function sExpire(){B(400,0.08,'sine',0.04);setTimeout(()=>B(300,0.08,'sine',0.04),100)}
+let AC=null, BG=null;
+function ctx(){if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();return AC}
+function B(f,d,t='sine',v=0.04,delay=0,detune=0){
+  const a=ctx(),ct=a.currentTime+delay,o=a.createOscillator(),g=a.createGain();
+  o.type=t;o.frequency.value=f;if(detune)o.detune.value=detune;
+  g.gain.setValueAtTime(v,ct);g.gain.exponentialRampToValueAtTime(0.001,ct+d);
+  o.connect(g);g.connect(a.destination);o.start(ct);o.stop(ct+d);
+  return{osc:o,gain:g};
+}
+// Rich layered sound generators
+function playNote(f,d,t='sine',v=0.04,delay=0){
+  B(f,d,t,v,delay);B(f*1.01,d,t,v*0.5,delay,5);B(f*2,d,t,v*0.25,delay,10);
+}
+// ── SFX ──
+function sBeep(){B(1800,0.06,'sine',0.045);B(2400,0.04,'sine',0.03,0.02)}
+function sPay(){
+  B(523,0.12,'triangle',0.06);B(659,0.1,'triangle',0.05,0.06);
+  B(784,0.12,'triangle',0.06,0.12);B(1047,0.15,'triangle',0.04,0.16);
+  // cash register "cha-ching" — noise burst
+  const a=ctx(),ct=a.currentTime;
+  for(let i=0;i<8;i++){B(2000+Math.random()*3000,0.015+Math.random()*0.02,'square',0.012,0.1+i*0.015)}
+}
+function sBad(){B(80,0.4,'sawtooth',0.08);B(60,0.5,'sine',0.06,0.1);B(100,0.3,'square',0.04,0.05)}
+function sCat(){B(500,0.12,'triangle',0.04);B(700,0.1,'triangle',0.035,0.08);B(900,0.15,'triangle',0.03,0.15);B(600,0.2,'sine',0.025,0.22)}
+function sThief(){B(200,0.3,'sawtooth',0.06);B(150,0.4,'sawtooth',0.05,0.15);B(100,0.5,'square',0.04,0.3)}
+function sTip(){
+  B(1047,0.1,'sine',0.04);B(1319,0.1,'sine',0.04,0.06);
+  B(1568,0.1,'sine',0.04,0.12);B(2093,0.2,'sine',0.06,0.2);
+}
+function sClean(){for(let i=0;i<8;i++){setTimeout(()=>{B(800+Math.random()*1200,0.025,'sine',0.02)},i*45)}}
+function sStock(){B(400,0.08,'triangle',0.045);B(600,0.06,'triangle',0.035,0.08);B(900,0.1,'sine',0.03,0.14)}
+function sExpire(){B(600,0.06,'triangle',0.04);B(500,0.06,'triangle',0.04,0.08);B(400,0.1,'square',0.03,0.14)}
+function sAlert(){B(880,0.08,'square',0.04);setTimeout(()=>B(660,0.08,'square',0.04),120);setTimeout(()=>B(880,0.08,'square',0.04),240)}
+
+// ── BACKGROUND MUSIC ──
+// Simple procedural pentatonic melody loops
+const PENT=[262,294,330,392,440,523,587,659,784,1047]; // C pentatonic
+let bgmOn=false, bgmSeq=0, bgmTimer=null, bgmGain=null;
+
+function startBGM(){
+  if(bgmOn)return; bgmOn=true;
+  const a=ctx();
+  bgmGain=a.createGain();bgmGain.gain.value=0.025;bgmGain.connect(a.destination);
+  bgmSeq=0;
+  function tick(){
+    if(!bgmOn)return;
+    const t=a.currentTime;
+    // Bass note every beat
+    const bassFreq=PENT[bgmSeq%5]*0.5;
+    const bo=a.createOscillator();bo.type='triangle';bo.frequency.value=bassFreq;
+    const bg=a.createGain();bg.gain.setValueAtTime(0.035,t);bg.gain.exponentialRampToValueAtTime(0.001,t+0.4);
+    bo.connect(bg);bg.connect(bgmGain);bo.start(t);bo.stop(t+0.4);
+    // Melody note
+    if(bgmSeq%3!==0){
+      const mf=PENT[(bgmSeq*2+2)%PENT.length];
+      const mo=a.createOscillator();mo.type='sine';mo.frequency.value=mf;
+      const mg=a.createGain();mg.gain.setValueAtTime(0.03,t+0.05);mg.gain.exponentialRampToValueAtTime(0.001,t+0.5);
+      // Vibrato
+      mo.detune.setValueAtTime(0,t+0.05);mo.detune.linearRampToValueAtTime(8,t+0.2);mo.detune.linearRampToValueAtTime(0,t+0.45);
+      mo.connect(mg);mg.connect(bgmGain);mo.start(t+0.05);mo.stop(t+0.5);
+    }
+    // Harmony every 4 beats
+    if(bgmSeq%4===0){
+      const hf=PENT[bgmSeq%5];
+      const ho=a.createOscillator();ho.type='sine';ho.frequency.value=hf;
+      const hg=a.createGain();hg.gain.setValueAtTime(0.02,t+0.1);hg.gain.exponentialRampToValueAtTime(0.001,t+0.8);
+      ho.connect(hg);hg.connect(bgmGain);ho.start(t+0.1);ho.stop(t+0.8);
+    }
+    bgmSeq++;
+    bgmTimer=setTimeout(tick,380); // ~158 BPM — brisk convenience store tempo
+  }
+  tick();
+}
+function stopBGM(){bgmOn=false;if(bgmTimer)clearTimeout(bgmTimer);bgmTimer=null}
+function setBGMVolume(v){if(bgmGain)bgmGain.gain.linearRampToValueAtTime(Math.max(0.005,Math.min(0.05,v)),ctx().currentTime+0.1)}
+// Adjust BGM by time of day
+function bgmByPhase(){const vols=[0.03,0.025,0.02,0.035];setBGMVolume(vols[G.ph]||0.025)}
 
 // ─── HELPERS ─────────────────────────────
 function Rr(x,y,w,h,r){X.beginPath();X.moveTo(x+r,y);X.lineTo(x+w-r,y);X.quadraticCurveTo(x+w,y,x+w,y+r);X.lineTo(x+w,y+h-r);X.quadraticCurveTo(x+w,y+h,x+w-r,y+h);X.lineTo(x+r,y+h);X.quadraticCurveTo(x,y+h,x,y+h-r);X.lineTo(x,y+r);X.quadraticCurveTo(x,y,x+r,y);X.closePath()}
@@ -440,7 +516,7 @@ function render(){
 // ═══════════════════════════════════════════════════
 function update(dt){
   if(G.st==='idle'&&!G.cm){
-    G.pT+=dt;if(G.pT>=PL&&G.ph<3){G.ph++;G.pT=0;dU()}if(G.ph>=3&&G.pT>=PL){eG();return}
+    G.pT+=dt;if(G.pT>=PL&&G.ph<3){G.ph++;G.pT=0;bgmByPhase();dU()}if(G.ph>=3&&G.pT>=PL){eG();return}
     G.idT-=dt;
     if(G.idT<=0&&!G.ev){
       const r=Math.random();
@@ -480,7 +556,7 @@ function update(dt){
 }
 
 function eG(){
-  G.st='gameover';const bonus=Math.floor(G.rt*8);G.mn+=bonus;
+  G.st='gameover';stopBGM();const bonus=Math.floor(G.rt*8);G.mn+=bonus;
   document.getElementById('end-panel').style.display='flex';
   document.getElementById('final-salary').textContent='¥'+G.mn;
   document.getElementById('final-detail').innerHTML=`👥 服务:${G.cs}人 | 💰 小费:${G.tp}次<br>🐱 喂猫:${G.cp}次 | 👮 抓贼:${G.tc}次<br>📋 清过期:${G.ex}件 | ⭐ 评分:${G.rt.toFixed(1)}`;
@@ -490,7 +566,7 @@ function eG(){
 
 function sG(){
   iG();document.getElementById('start-panel').style.display='none';document.getElementById('end-panel').style.display='none';
-  hB();sB('btn-scan');if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();
+  hB();sB('btn-scan');ctx();startBGM();bgmByPhase();
 }
 
 // ─── INPUT ────────────────────────────────
@@ -514,40 +590,39 @@ document.getElementById('retry-btn').addEventListener('touchend',e=>{e.preventDe
 });
 
 // ─── STARTUP ──────────────────────────────
-// Show progress during loading
 const loadEl=document.getElementById('load-panel');
+const loadTxt=loadEl.querySelector('.ltxt');
+const loadBar=document.getElementById('load-fill');
 let loadedCount=0,totalCount=Object.keys(IMG_LIST).length;
 loadEl.style.display='flex';
-loadEl.querySelector('div').textContent='🎨 加载素材中... 0/'+totalCount;
 
-// Load images with progress
-const loadPromises=Object.entries(IMG_LIST).map(([k,url])=>{
-  return new Promise((resolve)=>{
-    const img=new Image();
-    img.onload=()=>{
-      IMG[k]=img;loadedCount++;
-      loadEl.querySelector('div').textContent='🎨 加载素材中... '+loadedCount+'/'+totalCount;
-      resolve();
-    };
-    img.onerror=()=>{
-      console.warn('Failed to load:',url);loadedCount++;
-      loadEl.querySelector('div').textContent='🎨 加载素材中... '+loadedCount+'/'+totalCount;
-      resolve();
-    };
-    img.src=url;
-  });
+// Load images with progress bar
+Object.entries(IMG_LIST).forEach(([k,dataUri])=>{
+  const img=new Image();
+  img.onload=()=>{
+    IMG[k]=img;loadedCount++;
+    const pct=Math.round(loadedCount/totalCount*100);
+    loadTxt.textContent='🎨 加载素材... '+loadedCount+'/'+totalCount;
+    loadBar.style.width=pct+'%';
+    if(loadedCount>=totalCount)onAllLoaded();
+  };
+  img.onerror=()=>{
+    loadedCount++;
+    const pct=Math.round(loadedCount/totalCount*100);
+    loadBar.style.width=pct+'%';
+    if(loadedCount>=totalCount)onAllLoaded();
+  };
+  img.src=dataUri;
 });
 
-Promise.all(loadPromises).then(()=>{
+function onAllLoaded(){
   loadEl.style.display='none';
   gameStarted=true;
   iG();
   let lt=performance.now();
   function loop(t){const dt=Math.min(0.1,(t-lt)/1000);lt=t;update(dt);render();requestAnimationFrame(loop)}
   requestAnimationFrame(loop);
-}).catch(()=>{
-  loadEl.innerHTML='<div style=color:#f66>素材加载失败，请刷新重试</div>';
-});
+}
 </script>
 </body>
 </html>
