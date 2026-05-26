@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐴 休闲农场</title>
+<style>
+/* ================================================================
+   FARM SCENE BACKGROUND
+   ================================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+  overflow-x: hidden;
+  /* Sky + grass background */
+  background:
+    /* clouds */
+    radial-gradient(ellipse 180px 60px at 15% 18%, rgba(255,255,255,0.7) 0%, transparent 70%),
+    radial-gradient(ellipse 140px 45px at 35% 12%, rgba(255,255,255,0.5) 0%, transparent 70%),
+    radial-gradient(ellipse 200px 55px at 55% 22%, rgba(255,255,255,0.65) 0%, transparent 70%),
+    radial-gradient(ellipse 160px 50px at 75% 15%, rgba(255,255,255,0.55) 0%, transparent 70%),
+    radial-gradient(ellipse 120px 40px at 90% 20%, rgba(255,255,255,0.45) 0%, transparent 70%),
+    /* distant hills */
+    radial-gradient(ellipse 500px 120px at 25% 52%, #8BC34A 0%, transparent 70%),
+    radial-gradient(ellipse 400px 100px at 70% 55%, #7CB342 0%, transparent 70%),
+    /* sky gradient */
+    linear-gradient(180deg,
+      #87CEEB 0%,      /* sky blue */
+      #B8DCF0 15%,
+      #C5E8A5 35%,     /* distant green */
+      #9CCC65 45%,     /* mid green */
+      #7CB342 55%,     /* grass */
+      #689F38 70%,
+      #558B2F 85%,
+      #4E7A27 100%     /* dark grass bottom */
+    );
+  background-attachment: fixed;
+}
+
+/* ================================================================
+   DECORATIVE SCENE ELEMENTS (CSS-only)
+   ================================================================ */
+body::before {
+  content: '';
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    /* fence posts left */
+    repeating-linear-gradient(90deg,
+      transparent 0px,
+      transparent 80px,
+      #6D4C2E 80px,
+      #8B6914 86px,
+      transparent 86px
+    ) 0 70% / 100% 30px no-repeat,
+    /* fence rail */
+    linear-gradient(180deg, #8B6914, #6D4C2E) 0 calc(70% + 8px) / 100% 6px no-repeat,
+    /* fence rail 2 */
+    linear-gradient(180deg, #8B6914, #6D4C2E) 0 calc(70% + 18px) / 100% 4px no-repeat;
+  opacity: 0.15;
+}
+
+/* floating cloud animation */
+@keyframes cloudDrift {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(60px); }
+}
+
+/* ================================================================
+   MAIN GAME CONTAINER
+   ================================================================ */
+#app {
+  width: 840px;
+  max-width: 100%;
+  background:
+    /* wood grain texture approximation */
+    repeating-linear-gradient(2deg, transparent, transparent 2px, rgba(139,90,43,0.03) 2px, rgba(139,90,43,0.03) 3px),
+    linear-gradient(180deg, #FDF5E6 0%, #F5E6CC 100%);
+  border-radius: 28px;
+  border: 4px solid #A0822A;
+  box-shadow:
+    0 0 0 6px #6D4C2E,
+    0 0 0 10px #A0822A,
+    0 12px 60px rgba(0,0,0,0.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+
+/* top fence decoration */
+#app::before {
+  content: '🏡 ⸻ ⸻ ⸻ 🌾 我的农场 🌾 ⸻ ⸻ ⸻ 🌳';
+  display: block;
+  text-align: center;
+  padding: 10px;
+  font-size: 15px;
+  letter-spacing: 2px;
+  color: #5D4037;
+  background: linear-gradient(180deg, #D2A679, #C49A6C, #D2A679);
+  border-bottom: 3px solid #8B6914;
+  font-weight: 700;
+}
+
+/* ================================================================
+   HEADER — wooden sign board
+   ================================================================ */
+#header {
+  background:
+    linear-gradient(180deg, #E8C97A 0%, #D4A84B 30%, #C49A3C 60%, #D4A84B 100%);
+  margin: 16px 24px;
+  padding: 12px 24px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  border: 3px solid #8B6914;
+  box-shadow:
+    inset 0 2px 4px rgba(255,255,255,0.3),
+    inset 0 -2px 4px rgba(0,0,0,0.15),
+    0 4px 12px rgba(0,0,0,0.15);
+  position: relative;
+}
+/* nail heads on sign */
+#header::before, #header::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  width: 14px; height: 14px;
+  background: radial-gradient(circle, #C0C0C0, #808080);
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+#header::before { left: 14px; }
+#header::after { right: 14px; }
+
+.level-badge {
+  background: #5D4037;
+  color: #FFD54F;
+  font-weight: 900;
+  font-size: 18px;
+  padding: 6px 18px;
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 3px #8B6914,
+    0 3px 8px rgba(0,0,0,0.2);
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.resources {
+  display: flex;
+  gap: 16px;
+  font-weight: 700;
+  font-size: 15px;
+  color: #4E342E;
+  flex-shrink: 0;
+}
+.resources span {
+  background: rgba(255,255,255,0.5);
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+.exp-area { flex: 1; min-width: 140px; }
+.exp-label { font-size: 11px; color: #5D4037; font-weight: 700; margin-bottom: 3px; }
+.exp-bar-outer {
+  background: rgba(255,255,255,0.5);
+  border-radius: 10px;
+  height: 16px;
+  overflow: hidden;
+  position: relative;
+  border: 2px solid #8B6914;
+}
+.exp-bar-inner {
+  height: 100%;
+  background: linear-gradient(90deg, #FFD54F, #FFB300, #FF8F00);
+  border-radius: 8px;
+  transition: width 0.4s ease;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
+}
+.exp-text {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  font-weight: 900;
+  color: #4E342E;
+  text-shadow: 0 0 3px rgba(255,255,255,0.8);
+}
+
+/* ================================================================
+   GRID AREA — farm plots
+   ================================================================ */
+#grid-section {
+  padding: 8px 24px 4px;
+  position: relative;
+}
+/* grass texture for grid background */
+#grid-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 15% 25%, #8BC34A 0.5px, transparent 0.5px),
+    radial-gradient(circle at 45% 55%, #7CB342 0.8px, transparent 0.8px),
+    radial-gradient(circle at 75% 30%, #9CCC65 0.6px, transparent 0.6px),
+    radial-gradient(circle at 30% 70%, #8BC34A 0.7px, transparent 0.7px),
+    radial-gradient(circle at 65% 80%, #7CB342 0.5px, transparent 0.5px),
+    linear-gradient(180deg, rgba(139,195,74,0.3), rgba(124,179,66,0.25));
+  z-index: -1;
+  margin: 8px;
+}
+
+#grid-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  padding: 8px;
+}
+
+/* ================================================================
+   PLOT — raised garden bed
+   ================================================================ */
+.plot {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  min-height: 170px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  /* soil texture */
+  background:
+    radial-gradient(circle at 15% 20%, #9B7924 1px, transparent 1px),
+    radial-gradient(circle at 55% 35%, #8B6914 1.2px, transparent 1.2px),
+    radial-gradient(circle at 75% 60%, #7A5B12 0.8px, transparent 0.8px),
+    radial-gradient(circle at 25% 70%, #9B7924 1.4px, transparent 1.4px),
+    radial-gradient(circle at 60% 80%, #8B6914 1px, transparent 1px),
+    radial-gradient(circle at 40% 15%, #A0822A 0.9px, transparent 0.9px),
+    linear-gradient(175deg, #C4A04A 0%, #A0822A 30%, #8B6914 70%, #7A5B12 100%);
+  /* grass border */
+  border: 8px solid #6B8E23;
+  outline: 3px solid #556B2F;
+  outline-offset: -1px;
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.2),
+    inset 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.plot:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 8px 24px rgba(0,0,0,0.25),
+    inset 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Corner fence posts */
+.plot::before {
+  content: '';
+  position: absolute;
+  inset: -14px;
+  border-radius: 18px;
+  pointer-events: none;
+  z-index: -1;
+  /* just let the grass border be visible */
+}
+
+/* plot status variants */
+.plot.locked {
+  filter: brightness(0.6) saturate(0.3);
+  cursor: not-allowed;
+  border-color: #8B8B6E;
+  outline-color: #6B6B4E;
+}
+.plot.locked:hover { transform: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+
+.plot.occupied {
+  border-color: #8BAA3C;
+}
+.plot.mature {
+  border-color: #DAA520;
+  outline-color: #B8860B;
+  animation: matureGlow 1.5s ease-in-out infinite;
+}
+
+@keyframes matureGlow {
+  0%, 100% { box-shadow: 0 0 15px 5px rgba(255,215,0,0.3), 0 4px 12px rgba(0,0,0,0.2); }
+  50% { box-shadow: 0 0 30px 12px rgba(255,215,0,0.5), 0 4px 12px rgba(0,0,0,0.2); }
+}
+
+/* ================================================================
+   PLOT CONTENT
+   ================================================================ */
+.plot-emoji {
+  font-size: 50px;
+  transition: transform 0.3s;
+  line-height: 1.1;
+  z-index: 1;
+  filter: drop-shadow(0 4px 4px rgba(0,0,0,0.25));
+}
+.plot.mature .plot-emoji {
+  font-size: 54px;
+  animation: matureBounce 0.5s ease-in-out infinite;
+}
+@keyframes matureBounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-8px) scale(1.08); }
+  60% { transform: translateY(-4px) scale(1.04); }
+}
+
+.plot-label {
+  font-size: 12px;
+  color: #FFFDE7;
+  margin-top: 2px;
+  font-weight: 700;
+  z-index: 1;
+  background: rgba(0,0,0,0.35);
+  padding: 2px 10px;
+  border-radius: 8px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+.plot-timer {
+  font-size: 12px;
+  color: #FFE082;
+  font-weight: 700;
+  margin-top: 2px;
+  z-index: 1;
+  background: rgba(0,0,0,0.3);
+  padding: 1px 8px;
+  border-radius: 6px;
+}
+.plot.mature .plot-timer {
+  color: #FFD54F;
+  font-size: 14px;
+  background: rgba(180,100,0,0.5);
+  animation: pulse 0.8s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* Progress bar on soil */
+.progress-bar-outer {
+  width: 70%;
+  height: 8px;
+  background: rgba(0,0,0,0.35);
+  border-radius: 4px;
+  margin-top: 4px;
+  overflow: hidden;
+  z-index: 1;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+.progress-bar-inner {
+  height: 100%;
+  background: linear-gradient(90deg, #81C784, #4CAF50, #388E3C);
+  border-radius: 3px;
+  transition: width 1s linear;
+  box-shadow: 0 0 6px rgba(129,199,132,0.5);
+}
+
+/* Action buttons */
+.plot-actions {
+  display: flex;
+  gap: 5px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  z-index: 1;
+}
+.plot-btn {
+  padding: 4px 12px;
+  border: 2px solid rgba(0,0,0,0.2);
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+}
+.plot-btn:active { transform: scale(0.9); }
+.btn-feed {
+  background: linear-gradient(180deg, #A5D6A7, #66BB6A);
+  color: #1B5E20;
+}
+.btn-feed:hover { background: linear-gradient(180deg, #C8E6C9, #81C784); }
+.btn-feed:disabled {
+  background: rgba(255,255,255,0.2);
+  color: rgba(255,255,255,0.4);
+  cursor: not-allowed;
+  border-color: rgba(255,255,255,0.1);
+}
+.btn-harvest {
+  background: linear-gradient(180deg, #FFCC80, #FFA726);
+  color: #4E342E;
+  font-size: 13px;
+  padding: 6px 16px;
+  border-radius: 14px;
+}
+.btn-harvest:hover { background: linear-gradient(180deg, #FFE0B2, #FFB74D); }
+.btn-clear {
+  background: linear-gradient(180deg, #EF9A9A, #E57373);
+  color: #fff;
+  font-size: 10px;
+  padding: 3px 8px;
+}
+.btn-clear:hover { background: linear-gradient(180deg, #FFCDD2, #EF5350); }
+
+/* Empty / locked states */
+.empty-hint {
+  color: rgba(255,255,255,0.7);
+  font-size: 12px;
+  margin-top: 2px;
+  z-index: 1;
+  background: rgba(0,0,0,0.2);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.lock-icon { font-size: 32px; opacity: 0.5; z-index: 1; }
+.lock-text {
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  margin-top: 4px;
+  z-index: 1;
+  background: rgba(0,0,0,0.2);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+/* ================================================================
+   BATCH ACTIONS — wooden shelf
+   ================================================================ */
+#batch-actions {
+  display: flex;
+  gap: 12px;
+  padding: 12px 24px;
+  justify-content: center;
+  flex-wrap: wrap;
+  background: linear-gradient(180deg, rgba(139,105,20,0.15), rgba(139,105,20,0.05));
+  margin: 8px 24px;
+  border-radius: 14px;
+  border: 2px solid rgba(139,105,20,0.2);
+}
+.batch-btn {
+  padding: 10px 18px;
+  border: 2px solid rgba(0,0,0,0.2);
+  border-radius: 18px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+.batch-btn:active { transform: scale(0.94); }
+.batch-feed {
+  background: linear-gradient(180deg, #81C784, #4CAF50);
+  box-shadow: 0 3px 0 #388E3C;
+}
+.batch-harvest {
+  background: linear-gradient(180deg, #FFB74D, #FF9800);
+  box-shadow: 0 3px 0 #E65100;
+}
+.batch-clear {
+  background: linear-gradient(180deg, #E57373, #D32F2F);
+  box-shadow: 0 3px 0 #B71C1C;
+}
+
+/* ================================================================
+   BOTTOM NAV — stone/wood tabs
+   ================================================================ */
+#bottom-nav {
+  display: flex;
+  background: linear-gradient(180deg, #D2A679, #C49A6C);
+  border-top: 3px solid #8B6914;
+  margin: 0 24px;
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+}
+.nav-tab {
+  flex: 1;
+  padding: 14px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #4E342E;
+  transition: all 0.2s;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  position: relative;
+}
+.nav-tab:hover { background: rgba(255,255,255,0.2); }
+.nav-tab.active {
+  background: linear-gradient(180deg, #FDF5E6, #F5E6CC);
+  color: #E65100;
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+}
+.nav-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 25%;
+  right: 25%;
+  height: 3px;
+  background: #FF8C42;
+  border-radius: 3px 3px 0 0;
+}
+
+/* ================================================================
+   PANEL CONTENT
+   ================================================================ */
+#panel-content {
+  padding: 16px 28px 20px;
+  min-height: 100px;
+  background: linear-gradient(180deg, #FDF5E6, #F5E6CC);
+  margin: 0 24px;
+  border-radius: 0 0 18px 18px;
+  border: 2px solid rgba(139,105,20,0.15);
+  border-top: none;
+}
+
+/* ================================================================
+   MODAL
+   ================================================================ */
+#modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: fadeIn 0.2s ease;
+  backdrop-filter: blur(3px);
+}
+#modal-overlay.hidden { display: none; }
+
+.modal-box {
+  background:
+    radial-gradient(ellipse at 50% 0%, #FFF8E1 0%, transparent 50%),
+    linear-gradient(180deg, #FDF5E6, #F0E4CC);
+  border-radius: 24px;
+  padding: 28px 32px;
+  max-width: 520px;
+  width: 90%;
+  max-height: 75vh;
+  overflow-y: auto;
+  box-shadow: 0 0 0 4px #A0822A, 0 0 0 8px #6D4C2E, 0 20px 60px rgba(0,0,0,0.4);
+  animation: scaleIn 0.3s ease;
+  position: relative;
+}
+
+.modal-title {
+  font-size: 22px;
+  font-weight: 900;
+  color: #4E342E;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* ================================================================
+   ADOPTION CARDS
+   ================================================================ */
+.adopt-choices { display: flex; gap: 16px; justify-content: center; }
+.adopt-card {
+  flex: 1;
+  padding: 24px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  border: 3px solid #E0D5C1;
+  background:
+    linear-gradient(180deg, #FFF8EC 0%, #F5E6CC 100%);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.adopt-card:hover {
+  border-color: #FF8C42;
+  transform: translateY(-6px);
+  box-shadow: 0 12px 32px rgba(255,140,66,0.25);
+}
+.adopt-card .emoji { font-size: 56px; display: block; }
+.adopt-card .name { font-size: 18px; font-weight: 900; color: #5D4037; margin-top: 8px; }
+.adopt-card .info { font-size: 12px; color: #8D6E63; margin-top: 6px; line-height: 1.6; }
+
+/* ================================================================
+   ITEM ROWS (Backpack / Shop)
+   ================================================================ */
+.item-row {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid #E8D5B0;
+  gap: 12px;
+  background: rgba(255,255,255,0.4);
+  border-radius: 10px;
+  margin-bottom: 6px;
+}
+.item-row:last-child { border: none; margin-bottom: 0; }
+.item-emoji { font-size: 36px; flex-shrink: 0; }
+.item-info { flex: 1; }
+.item-name { font-weight: 700; color: #5D4037; font-size: 15px; }
+.item-count { font-size: 12px; color: #8D6E63; margin-top: 2px; }
+.item-action-btn {
+  padding: 8px 18px;
+  border: 2px solid rgba(0,0,0,0.15);
+  border-radius: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.item-action-btn:active { transform: scale(0.93); }
+.btn-sell {
+  background: linear-gradient(180deg, #FFCC80, #FF9800);
+  color: #4E342E;
+}
+.btn-sell:hover { background: linear-gradient(180deg, #FFE0B2, #FFB74D); }
+.btn-buy {
+  background: linear-gradient(180deg, #A5D6A7, #66BB6A);
+  color: #1B5E20;
+}
+.btn-buy:hover { background: linear-gradient(180deg, #C8E6C9, #81C784); }
+.btn-buy:disabled {
+  background: #E0E0E0;
+  color: #BDBDBD;
+  cursor: not-allowed;
+  border-color: #E0E0E0;
+}
+
+.empty-state { text-align: center; padding: 32px; color: #B8A88A; font-size: 15px; }
+
+/* ================================================================
+   MUTATION POPUP
+   ================================================================ */
+.mutation-popup { text-align: center; padding: 10px; }
+.mutation-bag {
+  font-size: 80px;
+  animation: mutationBounce 0.6s ease;
+  filter: drop-shadow(0 8px 16px rgba(0,0,0,0.2));
+}
+.mutation-text {
+  font-size: 22px;
+  font-weight: 900;
+  color: #E65100;
+  margin-top: 12px;
+}
+.mutation-bag-name {
+  font-size: 26px;
+  font-weight: 900;
+  color: #FF6D00;
+  margin-top: 8px;
+}
+.mutation-sub {
+  font-size: 14px;
+  color: #8D6E63;
+  margin-top: 6px;
+  line-height: 1.8;
+}
+
+/* ================================================================
+   TOAST
+   ================================================================ */
+#toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #4E342E;
+  color: #FFD54F;
+  padding: 10px 28px;
+  border-radius: 24px;
+  font-weight: 700;
+  font-size: 14px;
+  z-index: 200;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  border: 2px solid #8B6914;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+#toast.show { opacity: 1; }
+
+/* ================================================================
+   EFFECTS
+   ================================================================ */
+.floating-emoji {
+  position: absolute;
+  font-size: 28px;
+  pointer-events: none;
+  z-index: 10;
+  animation: floatUp 0.9s ease-out forwards;
+}
+.sparkle {
+  position: absolute;
+  pointer-events: none;
+  font-size: 24px;
+  z-index: 10;
+  animation: sparkleBurst 0.8s ease-out forwards;
+}
+
+/* ================================================================
+   KEYFRAMES
+   ================================================================ */
+@keyframes floatUp {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-60px) scale(0.2); opacity: 0; }
+}
+@keyframes sparkleBurst {
+  0% { transform: scale(0) rotate(0deg); opacity: 1; }
+  50% { transform: scale(1.6) rotate(200deg); opacity: 0.8; }
+  100% { transform: scale(0) rotate(400deg); opacity: 0; }
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes mutationBounce {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.35); }
+  70% { transform: scale(0.85); }
+  100% { transform: scale(1); }
+}
+@keyframes goldenPulse {
+  0% { box-shadow: 0 0 0 0 rgba(255,215,0,0.7); }
+  100% { box-shadow: 0 0 0 30px rgba(255,215,0,0); }
+}
+
+/* ================================================================
+   RESPONSIVE — Tablet
+   ================================================================ */
+@media (max-width: 860px) {
+  body { padding: 10px; align-items: flex-start; }
+  #app { width: 100%; border-radius: 18px; border-width: 3px; box-shadow: 0 0 0 4px #6D4C2E, 0 0 0 7px #A0822A, 0 8px 40px rgba(0,0,0,0.25); }
+  #app::before { font-size: 12px; padding: 6px; }
+  #header { margin: 8px 10px; padding: 8px 14px; gap: 8px; }
+  #header::before, #header::after { width: 10px; height: 10px; top: 4px; }
+  .level-badge { font-size: 15px; padding: 4px 14px; }
+  .resources { font-size: 13px; gap: 8px; }
+  #grid-section { padding: 4px 10px; }
+  #grid-container { gap: 10px; padding: 4px; }
+  .plot { min-height: 100px; border-width: 5px; border-radius: 12px; outline-width: 2px; }
+  .plot-emoji { font-size: 32px; }
+  .plot.mature .plot-emoji { font-size: 36px; }
+  .plot-label { font-size: 10px; }
+  .plot-timer { font-size: 10px; }
+  .plot-btn { font-size: 10px; padding: 3px 8px; }
+  .btn-harvest { font-size: 11px; padding: 4px 12px; }
+  .progress-bar-outer { height: 5px; width: 75%; }
+  #batch-actions { margin: 4px 10px; padding: 8px 10px; gap: 6px; }
+  .batch-btn { font-size: 11px; padding: 8px 12px; }
+  #bottom-nav { margin: 0 10px; }
+  .nav-tab { font-size: 13px; padding: 10px 6px; }
+  #panel-content { margin: 0 10px; padding: 12px 14px 16px; }
+}
+
+/* ================================================================
+   RESPONSIVE — Mobile (iPhone etc.)
+   ================================================================ */
+@media (max-width: 480px) {
+  body {
+    padding: 0;
+    align-items: flex-start;
+    background:
+      radial-gradient(ellipse 100px 30px at 20% 10%, rgba(255,255,255,0.5) 0%, transparent 70%),
+      radial-gradient(ellipse 80px 25px at 60% 8%, rgba(255,255,255,0.4) 0%, transparent 70%),
+      linear-gradient(180deg, #87CEEB 0%, #B8DCF0 12%, #C5E8A5 28%, #9CCC65 38%, #7CB342 55%, #558B2F 100%);
+    background-attachment: fixed;
+  }
+
+  #app {
+    width: 100%;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  #app::before { font-size: 10px; padding: 6px; letter-spacing: 1px; }
+
+  #header {
+    margin: 4px 8px;
+    padding: 8px 12px;
+    gap: 6px;
+    border-radius: 12px;
+    flex-wrap: wrap;
+  }
+  #header::before, #header::after { width: 8px; height: 8px; top: 3px; }
+  #header::before { left: 8px; }
+  #header::after { right: 8px; }
+  .level-badge { font-size: 14px; padding: 4px 12px; }
+  .resources { font-size: 12px; gap: 6px; }
+  .resources span { padding: 3px 8px; }
+  .exp-area { min-width: 100px; }
+  .exp-label { font-size: 10px; }
+  .exp-bar-outer { height: 12px; }
+  .exp-text { font-size: 9px; }
+
+  #grid-section { padding: 2px 6px; }
+  #grid-container {
+    gap: 7px;
+    padding: 2px;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .plot {
+    min-height: 95px;
+    border-width: 4px;
+    border-radius: 10px;
+    outline-width: 2px;
+    outline-offset: -0.5px;
+    aspect-ratio: auto;
+    padding: 4px 2px;
+  }
+  .plot-emoji { font-size: 30px; }
+  .plot.mature .plot-emoji { font-size: 34px; }
+  .plot-label { font-size: 9px; padding: 1px 6px; }
+  .plot-timer { font-size: 9px; padding: 1px 6px; }
+  .plot-btn { font-size: 9px; padding: 3px 7px; border-radius: 10px; }
+  .btn-harvest { font-size: 10px; padding: 4px 10px; border-radius: 12px; }
+  .btn-clear { font-size: 8px; padding: 2px 6px; }
+  .progress-bar-outer { height: 4px; width: 80%; margin-top: 2px; }
+  .empty-hint { font-size: 10px; }
+  .lock-icon { font-size: 24px; }
+  .lock-text { font-size: 9px; }
+
+  .plot-actions { gap: 3px; margin-top: 3px; }
+
+  #batch-actions {
+    margin: 2px 8px;
+    padding: 6px 8px;
+    gap: 4px;
+    border-radius: 10px;
+  }
+  .batch-btn { font-size: 10px; padding: 7px 10px; border-radius: 14px; }
+
+  /* Bottom nav — fixed at bottom on mobile */
+  #bottom-nav {
+    margin: 0;
+    border-radius: 0;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.1);
+  }
+  .nav-tab { font-size: 12px; padding: 10px 4px; }
+
+  #panel-content {
+    margin: 0;
+    padding: 10px 12px 16px;
+    border-radius: 0;
+    min-height: 80px;
+  }
+
+  /* Modals */
+  .modal-box { padding: 20px 16px; border-radius: 18px; }
+  .modal-title { font-size: 18px; margin-bottom: 14px; }
+  .adopt-choices { gap: 10px; }
+  .adopt-card { padding: 16px 10px; border-radius: 14px; }
+  .adopt-card .emoji { font-size: 40px; }
+  .adopt-card .name { font-size: 15px; }
+  .adopt-card .info { font-size: 11px; }
+  .mutation-bag { font-size: 60px; }
+  .mutation-bag-name { font-size: 20px; }
+  .item-row { padding: 10px 10px; gap: 8px; }
+  .item-emoji { font-size: 28px; }
+  .item-action-btn { font-size: 11px; padding: 6px 12px; }
+
+  /* Toast */
+  #toast { font-size: 12px; padding: 8px 20px; top: 12px; }
+}
+
+/* ================================================================
+   RESPONSIVE — Very small screens
+   ================================================================ */
+@media (max-width: 360px) {
+  #grid-container { gap: 5px; }
+  .plot { min-height: 80px; border-width: 3px; }
+  .plot-emoji { font-size: 24px; }
+  .plot.mature .plot-emoji { font-size: 28px; }
+  .plot-label { font-size: 8px; }
+  .plot-timer { font-size: 8px; }
+  .plot-btn { font-size: 8px; padding: 2px 5px; }
+  .btn-harvest { font-size: 9px; padding: 3px 8px; }
+  .batch-btn { font-size: 9px; padding: 6px 8px; }
+  .nav-tab { font-size: 11px; padding: 8px 2px; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="header">
+    <div class="level-badge" id="level-badge">Lv.1</div>
+    <div class="resources">
+      <span>🪙 <strong id="gold-display">1000</strong></span>
+      <span>🥕 <strong id="feed-display">5</strong></span>
+    </div>
+    <div class="exp-area">
+      <div class="exp-label">⭐ 经验</div>
+      <div class="exp-bar-outer">
+        <div class="exp-bar-inner" id="exp-bar" style="width:0%"></div>
+        <div class="exp-text" id="exp-text">0/50</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="grid-section">
+    <div id="grid-container"></div>
+  </div>
+
+  <div id="batch-actions">
+    <button class="batch-btn batch-feed" onclick="FarmGame.batchFeed()">🍼 一键喂食</button>
+    <button class="batch-btn batch-harvest" onclick="FarmGame.batchHarvest()">🧺 一键收获</button>
+    <button class="batch-btn batch-clear" onclick="FarmGame.batchClear()">🗑️ 一键清空</button>
+  </div>
+
+  <nav id="bottom-nav">
+    <button class="nav-tab active" data-panel="backpack">🎒 背包</button>
+    <button class="nav-tab" data-panel="shop">🏪 商店</button>
+    <button class="nav-tab" data-panel="collection">📦 图鉴</button>
+  </nav>
+
+  <div id="panel-content"></div>
+</div>
+
+<div id="modal-overlay" class="hidden" onclick="if(event.target===this)FarmGame.closeModal()">
+  <div class="modal-box" id="modal-box"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ======================================================================
+//  CONFIG — 可在此直接修改游戏参数
+// ======================================================================
+const CONFIG = {
+  MUTATION_RATE: 0.12,
+
+  GROWTH_TIME: {
+    horse: 120,
+    donkey: 90
+  },
+
+  INITIAL_GOLD: 1000,
+  INITIAL_FEED: 5,
+  INITIAL_PLOTS: 6,
+  MAX_PLOTS: 9,
+
+  FEED_COST: 50,
+  FEED_TIME_REDUCTION: 0.25,
+  MAX_FEED_PER_ANIMAL: 3,
+
+  expForLevel: (lv) => lv * lv * 50,
+
+  ANIMALS: {
+    horse: {
+      id: 'horse', name: '马', emoji: '🐴',
+      growthTime: () => CONFIG.GROWTH_TIME.horse,
+      normalProduct:  { id: 'horse_material', name: '普通马素材', emoji: '🐴', price: 30 },
+      mutationProduct:{ id: 'hermes_bag',     name: '爱马仕包包', emoji: '👜', price: 500 },
+      brandName: '爱马仕', brandIcon: '👜', brandColor: '#FF6600'
+    },
+    donkey: {
+      id: 'donkey', name: '驴', emoji: '🫏',
+      growthTime: () => CONFIG.GROWTH_TIME.donkey,
+      normalProduct:  { id: 'donkey_material', name: '普通驴素材', emoji: '🫏', price: 25 },
+      mutationProduct:{ id: 'lv_bag',          name: 'LV包包',     emoji: '👝', price: 450 },
+      brandName: 'LV', brandIcon: '👝', brandColor: '#8B6914'
+    }
+  }
+};
+
+// ======================================================================
+//  GAME STATE (localStorage)
+// ======================================================================
+const LS_KEY = 'animal_farm_v2';
+
+function createInitialState() {
+  const plots = [];
+  for (let i = 0; i < CONFIG.MAX_PLOTS; i++) {
+    plots.push({ id:i, empty:true, animalType:null, plantedAt:null, maturityTime:null, feedCount:0 });
+  }
+  return {
+    gold: CONFIG.INITIAL_GOLD, exp: 0, feed: CONFIG.INITIAL_FEED,
+    unlockedPlots: CONFIG.INITIAL_PLOTS, plots,
+    backpack: { horse_material:0, donkey_material:0, hermes_bag:0, lv_bag:0 },
+    stats: { totalHarvests:0, totalMutations:0 }
+  };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return createInitialState();
+    const s = JSON.parse(raw);
+    if (!s.stats) s.stats = { totalHarvests:0, totalMutations:0 };
+    if (!s.feed && s.feed !== 0) s.feed = CONFIG.INITIAL_FEED;
+    ['horse_material','donkey_material','hermes_bag','lv_bag'].forEach(k => {
+      if (!(k in s.backpack)) s.backpack[k] = 0;
+    });
+    return s;
+  } catch(e) { return createInitialState(); }
+}
+
+function saveState(s) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(s)); } catch(e) {}
+}
+
+// ======================================================================
+//  HELPERS
+// ======================================================================
+function getLevel(exp) {
+  let lv = 1;
+  while (exp >= CONFIG.expForLevel(lv)) { exp -= CONFIG.expForLevel(lv); lv++; }
+  return lv;
+}
+
+function getExpProgress(exp) {
+  let r = exp;
+  for (let lv = 1; ; lv++) {
+    const need = CONFIG.expForLevel(lv);
+    if (r < need) return { level: lv, current: r, needed: need };
+    r -= need;
+  }
+}
+
+function formatTime(sec) {
+  if (sec <= 0) return '可收获!';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return m > 0 ? `${m}分${s}秒` : `${s}秒`;
+}
+
+function getRemaining(plot) {
+  if (plot.empty || !plot.maturityTime) return 0;
+  return Math.max(0, Math.ceil((plot.maturityTime - Date.now()) / 1000));
+}
+
+function getGrowthStage(plot) {
+  if (plot.empty || !plot.maturityTime) return null;
+  const now = Date.now();
+  const total = plot.maturityTime - plot.plantedAt;
+  if (total <= 0) return 2;
+  const elapsed = total - Math.max(0, plot.maturityTime - now);
+  const progress = Math.min(1, elapsed / total);
+  if (progress >= 1) return 2;
+  if (progress >= 0.4) return 1;
+  return 0;
+}
+
+function getStageLabel(stage) {
+  return stage === 0 ? '幼崽期' : stage === 1 ? '成长期' : stage === 2 ? '成熟期' : '';
+}
+
+// ======================================================================
+//  GAME OBJECT
+// ======================================================================
+let state = loadState();
+let activePanel = 'backpack';
+let timerInterval = null;
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toast._tid);
+  toast._tid = setTimeout(() => el.classList.remove('show'), 2000);
+}
+toast._tid = null;
+
+const FarmGame = {
+
+  save() { saveState(state); },
+
+  resetAll() {
+    if (!confirm('确定要重置所有游戏数据吗？此操作不可恢复！')) return;
+    state = createInitialState();
+    saveState(state);
+    this.renderAll();
+    toast('🔄 游戏已重置');
+  },
+
+  // ---- ACTIONS ----
+
+  adoptAnimal(plotId, animalType) {
+    const plot = state.plots[plotId];
+    if (!plot || !plot.empty) return;
+    const animal = CONFIG.ANIMALS[animalType];
+    if (!animal) return;
+    const now = Date.now();
+    plot.empty = false;
+    plot.animalType = animalType;
+    plot.plantedAt = now;
+    plot.maturityTime = now + animal.growthTime() * 1000;
+    plot.feedCount = 0;
+    this.save(); this.closeModal(); this.renderAll();
+    this.spawnEmoji(plotId, animal.emoji);
+    toast(`🐾 领养了一只${animal.name}！`);
+  },
+
+  feedAnimal(plotId) {
+    const plot = state.plots[plotId];
+    if (!plot || plot.empty) return;
+    if (state.feed <= 0) { toast('❌ 饲料不足，请去商店购买'); return; }
+    if (plot.feedCount >= CONFIG.MAX_FEED_PER_ANIMAL) { toast('⚠️ 已达最大喂食次数'); return; }
+    const remaining = getRemaining(plot);
+    if (remaining <= 0) { toast('✅ 已成熟，直接收获吧'); return; }
+    plot.maturityTime -= Math.floor(remaining * CONFIG.FEED_TIME_REDUCTION * 1000);
+    plot.feedCount++; state.feed--;
+    this.save(); this.renderAll();
+    this.spawnEmoji(plotId, '❤️');
+    toast(`🍼 喂食成功！-${formatTime(Math.floor(remaining*CONFIG.FEED_TIME_REDUCTION))}`);
+  },
+
+  harvestAnimal(plotId) {
+    const plot = state.plots[plotId];
+    if (!plot || plot.empty) return;
+    if (getRemaining(plot) > 0) { toast('⏳ 还没成熟呢~'); return; }
+    const animal = CONFIG.ANIMALS[plot.animalType];
+    if (!animal) return;
+    const isMutation = Math.random() < CONFIG.MUTATION_RATE;
+    const product = isMutation ? animal.mutationProduct : animal.normalProduct;
+    state.backpack[product.id] = (state.backpack[product.id] || 0) + 1;
+    state.gold += product.price;
+    state.exp += isMutation ? 50 : 20;
+    state.stats.totalHarvests++;
+    if (isMutation) state.stats.totalMutations++;
+    const oldLv = getExpProgress({...state, exp: state.exp - (isMutation?50:20)}.exp).level; // wrong but close enough
+    plot.empty = true; plot.animalType = null; plot.plantedAt = null;
+    plot.maturityTime = null; plot.feedCount = 0;
+    this.save(); this.renderAll();
+    if (isMutation) {
+      this.spawnSparkles(plotId);
+      setTimeout(() => this.showMutationPopup(animal, product), 500);
+    } else {
+      this.spawnEmoji(plotId, product.emoji);
+      toast(`🧺 收获${product.name}！+${product.price}💰`);
+    }
+    const { level: newLv } = getExpProgress(state.exp);
+    if (newLv > oldLv) setTimeout(() => toast(`🎉 升级！Lv.${newLv}`), 400);
+  },
+
+  clearPlot(plotId) {
+    const plot = state.plots[plotId];
+    if (!plot || plot.empty) return;
+    if (!confirm('确定要清空这个地块吗？')) return;
+    plot.empty = true; plot.animalType = null; plot.plantedAt = null;
+    plot.maturityTime = null; plot.feedCount = 0;
+    this.save(); this.renderAll();
+    toast('🗑️ 地块已清空');
+  },
+
+  batchFeed() {
+    let fed = 0;
+    for (const p of state.plots) {
+      if (p.empty || p.feedCount >= CONFIG.MAX_FEED_PER_ANIMAL || getRemaining(p) <= 0) continue;
+      if (state.feed <= 0) break;
+      const r = getRemaining(p);
+      p.maturityTime -= Math.floor(r * CONFIG.FEED_TIME_REDUCTION * 1000);
+      p.feedCount++; state.feed--; fed++;
+    }
+    if (!fed) { toast(state.feed <= 0 ? '❌ 饲料不足' : '⚠️ 没有可喂食的动物'); return; }
+    this.save(); this.renderAll();
+    toast(`🍼 一键喂食 ${fed} 只动物`);
+  },
+
+  batchHarvest() {
+    let n = 0, g = 0, e = 0;
+    const mutations = [];
+    for (const p of state.plots) {
+      if (p.empty || getRemaining(p) > 0) continue;
+      const a = CONFIG.ANIMALS[p.animalType];
+      if (!a) continue;
+      const isM = Math.random() < CONFIG.MUTATION_RATE;
+      const prod = isM ? a.mutationProduct : a.normalProduct;
+      state.backpack[prod.id] = (state.backpack[prod.id] || 0) + 1;
+      g += prod.price; e += isM ? 50 : 20;
+      state.stats.totalHarvests++;
+      if (isM) { state.stats.totalMutations++; mutations.push({animal:a, product:prod}); }
+      p.empty = true; p.animalType = null; p.plantedAt = null;
+      p.maturityTime = null; p.feedCount = 0;
+      n++;
+    }
+    if (!n) { toast('⚠️ 没有可收获的动物'); return; }
+    state.gold += g; state.exp += e;
+    this.save(); this.renderAll();
+    toast(`🧺 收获 ${n} 个地块！+${g}💰 +${e}⭐`);
+    if (mutations.length) {
+      const last = mutations[mutations.length - 1];
+      setTimeout(() => this.showMutationPopup(last.animal, last.product), 400);
+    }
+  },
+
+  batchClear() {
+    const cnt = state.plots.filter(p => !p.empty).length;
+    if (!cnt) { toast('⚠️ 没有可清空的地块'); return; }
+    if (!confirm(`确定清空全部 ${cnt} 个地块？`)) return;
+    for (const p of state.plots) {
+      p.empty = true; p.animalType = null; p.plantedAt = null;
+      p.maturityTime = null; p.feedCount = 0;
+    }
+    this.save(); this.renderAll();
+    toast('🗑️ 全部地块已清空');
+  },
+
+  buyFeed() {
+    if (state.gold < CONFIG.FEED_COST) { toast('❌ 金币不足'); return; }
+    state.gold -= CONFIG.FEED_COST; state.feed++;
+    this.save(); this.renderAll();
+    toast('🛒 +1 饲料');
+  },
+
+  buyFeedBulk(n) {
+    const c = CONFIG.FEED_COST * n;
+    if (state.gold < c) { toast('❌ 金币不足'); return; }
+    state.gold -= c; state.feed += n;
+    this.save(); this.renderAll();
+    toast(`🛒 +${n} 饲料`);
+  },
+
+  unlockPlot() {
+    if (state.unlockedPlots >= CONFIG.MAX_PLOTS) { toast('⚠️ 所有地块已解锁'); return; }
+    const cost = CONFIG.expForLevel(state.unlockedPlots + 1) * 2;
+    if (state.gold < cost) { toast(`❌ 需要 ${cost} 金币`); return; }
+    state.gold -= cost; state.unlockedPlots++;
+    this.save(); this.renderAll();
+    toast(`🔓 解锁第${state.unlockedPlots}块地！`);
+  },
+
+  sellItem(itemId) {
+    const cnt = state.backpack[itemId];
+    if (!cnt) { toast('⚠️ 没有可出售的物品'); return; }
+    let price = 0, name = '';
+    for (const a of Object.values(CONFIG.ANIMALS)) {
+      if (a.normalProduct.id === itemId) { price = a.normalProduct.price; name = a.normalProduct.name; break; }
+      if (a.mutationProduct.id === itemId) { price = a.mutationProduct.price; name = a.mutationProduct.name; break; }
+    }
+    state.backpack[itemId]--; state.gold += price;
+    this.save(); this.renderAll();
+    toast(`💰 出售 ${name} +${price}金币`);
+  },
+
+  sellAllNormal() {
+    let t = 0;
+    for (const a of Object.values(CONFIG.ANIMALS)) {
+      const c = state.backpack[a.normalProduct.id] || 0;
+      if (c > 0) { t += c * a.normalProduct.price; state.backpack[a.normalProduct.id] = 0; }
+    }
+    if (!t) { toast('⚠️ 没有可出售的普通素材'); return; }
+    state.gold += t;
+    this.save(); this.renderAll();
+    toast(`💰 出售全部普通素材 +${t}金币`);
+  },
+
+  // ---- UI ----
+
+  renderAll() { this.renderHeader(); this.renderGrid(); this.renderPanel(); },
+
+  renderHeader() {
+    const { level, current, needed } = getExpProgress(state.exp);
+    document.getElementById('level-badge').textContent = `Lv.${level}`;
+    document.getElementById('gold-display').textContent = state.gold;
+    document.getElementById('feed-display').textContent = state.feed;
+    document.getElementById('exp-bar').style.width = Math.min(100, Math.round(current/needed*100)) + '%';
+    document.getElementById('exp-text').textContent = `${current}/${needed}`;
+  },
+
+  renderGrid() {
+    const c = document.getElementById('grid-container');
+    c.innerHTML = '';
+    for (let i = 0; i < CONFIG.MAX_PLOTS; i++) {
+      const plot = state.plots[i];
+      const unlocked = i < state.unlockedPlots;
+      const div = document.createElement('div');
+      div.className = 'plot';
+      div.dataset.plotId = i;
+
+      if (!unlocked) {
+        div.classList.add('locked');
+        div.innerHTML = `<div class="lock-icon">🔒</div><div class="lock-text">等级解锁</div>`;
+        div.onclick = () => toast('🔒 地块未解锁');
+      } else if (plot.empty) {
+        div.innerHTML = `<div class="plot-emoji">🌱</div><div class="empty-hint">点击领养</div>`;
+        div.onclick = () => this.showAdoptModal(i);
+      } else {
+        div.classList.add('occupied');
+        const animal = CONFIG.ANIMALS[plot.animalType];
+        const rem = getRemaining(plot);
+        const stage = getGrowthStage(plot);
+        const progress = plot.maturityTime
+          ? Math.min(1, (Date.now() - plot.plantedAt) / (plot.maturityTime - plot.plantedAt))
+          : 0;
+        if (rem <= 0) div.classList.add('mature');
+
+        div.innerHTML = `
+          <div class="plot-emoji">${rem <= 0 ? '✨' : ''}${animal.emoji}</div>
+          <div class="plot-label">${animal.name}·${getStageLabel(stage)}</div>
+          ${rem > 0 ? `<div class="progress-bar-outer"><div class="progress-bar-inner" style="width:${Math.round(progress*100)}%"></div></div>` : ''}
+          <div class="plot-timer">${rem > 0 ? '⏱ '+formatTime(rem) : '✅ 可收获!'}</div>
+          <div class="plot-actions">
+            ${rem > 0
+              ? `<button class="plot-btn btn-feed" ${plot.feedCount>=CONFIG.MAX_FEED_PER_ANIMAL?'disabled':''} onclick="event.stopPropagation();FarmGame.feedAnimal(${i})">🍼喂食(${plot.feedCount}/${CONFIG.MAX_FEED_PER_ANIMAL})</button>`
+              : `<button class="plot-btn btn-harvest" onclick="event.stopPropagation();FarmGame.harvestAnimal(${i})">🧺收获</button>`}
+            <button class="plot-btn btn-clear" onclick="event.stopPropagation();FarmGame.clearPlot(${i})">🗑️</button>
+          </div>`;
+        div.onclick = () => { if (rem <= 0) FarmGame.harvestAnimal(i); };
+      }
+      c.appendChild(div);
+    }
+  },
+
+  renderPanel() {
+    const p = document.getElementById('panel-content');
+    if (activePanel === 'backpack') p.innerHTML = this.buildBackpack();
+    else if (activePanel === 'shop') p.innerHTML = this.buildShop();
+    else p.innerHTML = this.buildCollection();
+  },
+
+  buildBackpack() {
+    let h = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><strong style="color:#4E342E;font-size:16px;">🎒 我的背包</strong>';
+    h += '<button onclick="FarmGame.sellAllNormal()" style="padding:6px 14px;border:none;border-radius:14px;background:linear-gradient(180deg,#FFCC80,#FF9800);color:#4E342E;font-weight:700;cursor:pointer;font-size:12px;border:2px solid rgba(0,0,0,0.15);">一键出售素材</button></div>';
+    let has = false;
+    for (const a of Object.values(CONFIG.ANIMALS)) {
+      const pr = a.mutationProduct;
+      const cnt = state.backpack[pr.id] || 0;
+      if (cnt > 0) {
+        has = true;
+        h += `<div class="item-row"><span class="item-emoji">${pr.emoji}</span><div class="item-info"><div class="item-name">${pr.name} <span style="font-size:10px;background:#FFD54F;color:#E65100;padding:2px 6px;border-radius:8px;">变异</span></div><div class="item-count">×${cnt}</div></div><button class="item-action-btn btn-sell" onclick="FarmGame.sellItem('${pr.id}')">出售 💰${pr.price}</button></div>`;
+      }
+    }
+    for (const a of Object.values(CONFIG.ANIMALS)) {
+      const pr = a.normalProduct;
+      const cnt = state.backpack[pr.id] || 0;
+      if (cnt > 0) {
+        has = true;
+        h += `<div class="item-row"><span class="item-emoji">${pr.emoji}</span><div class="item-info"><div class="item-name">${pr.name}</div><div class="item-count">×${cnt}</div></div><button class="item-action-btn btn-sell" onclick="FarmGame.sellItem('${pr.id}')">出售 💰${pr.price}</button></div>`;
+      }
+    }
+    if (!has) h += '<div class="empty-state">🎒 背包空空如也~<br>领养动物收获产物吧！</div>';
+    return h;
+  },
+
+  buildShop() {
+    const { level } = getExpProgress(state.exp);
+    const cost = state.unlockedPlots < CONFIG.MAX_PLOTS ? CONFIG.expForLevel(state.unlockedPlots+1) * 2 : null;
+    let h = '<strong style="color:#4E342E;font-size:16px;">🏪 商店</strong><br><br>';
+    h += `<div class="item-row"><span class="item-emoji">🥕</span><div class="item-info"><div class="item-name">饲料</div><div class="item-count">减少25%生长时间 · 每只最多${CONFIG.MAX_FEED_PER_ANIMAL}次</div></div><button class="item-action-btn btn-buy" onclick="FarmGame.buyFeed()">💰${CONFIG.FEED_COST} 买1</button><button class="item-action-btn btn-buy" onclick="FarmGame.buyFeedBulk(5)" style="margin-left:4px">💰${CONFIG.FEED_COST*5} 买5</button></div>`;
+    h += `<div class="item-row"><span class="item-emoji">🏞️</span><div class="item-info"><div class="item-name">地块解锁</div><div class="item-count">当前 ${state.unlockedPlots}/${CONFIG.MAX_PLOTS} 块</div></div>${cost ? `<button class="item-action-btn btn-buy" onclick="FarmGame.unlockPlot()">💰${cost} 解锁</button>` : '<span style="color:#BDBDBD;font-weight:700;font-size:13px;">✓ 全部解锁</span>'}</div>`;
+    h += `<div style="margin-top:12px;font-size:12px;color:#8D6E63;">Lv.${level} · 🪙${state.gold} · 🥕×${state.feed}</div>`;
+    return h;
+  },
+
+  buildCollection() {
+    let h = '<strong style="color:#4E342E;font-size:16px;">📦 变异图鉴</strong><br><br>';
+    h += '<div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;">';
+    for (const a of Object.values(CONFIG.ANIMALS)) {
+      const cnt = state.backpack[a.mutationProduct.id] || 0;
+      h += `<div style="text-align:center;padding:20px;background:linear-gradient(180deg,#FFF8EC,#F5E6CC);border-radius:18px;min-width:110px;border:2px solid #E8D5B0;">
+        <div style="font-size:48px;">${a.mutationProduct.emoji}</div>
+        <div style="font-weight:700;color:#4E342E;">${a.mutationProduct.name}</div>
+        <div style="font-size:12px;color:#8D6E63;">×${cnt}</div>
+        <div style="font-size:11px;color:#BDBDBD;">来源: ${a.name}变异</div>
+        ${cnt > 0 ? '<div style="color:#FFD54F;font-size:16px;">⭐已收集</div>' : '<div style="color:#BDBDBD;font-size:11px;">❓未获得</div>'}
+      </div>`;
+    }
+    h += '</div>';
+    h += `<div style="margin-top:16px;text-align:center;font-size:13px;color:#8D6E63;">变异率 ${(CONFIG.MUTATION_RATE*100).toFixed(0)}% · 总收获 ${state.stats.totalHarvests} · 变异 ${state.stats.totalMutations}</div>`;
+    return h;
+  },
+
+  // ---- MODALS ----
+
+  showAdoptModal(plotId) {
+    let cards = '';
+    for (const [type, a] of Object.entries(CONFIG.ANIMALS)) {
+      cards += `<div class="adopt-card" onclick="FarmGame.adoptAnimal(${plotId},'${type}')">
+        <span class="emoji">${a.emoji}</span>
+        <div class="name">${a.name}</div>
+        <div class="info">⏱ ${Math.floor(a.growthTime()/60)}分钟成熟<br>✨ ${a.brandIcon}${a.brandName}</div>
+      </div>`;
+    }
+    this.showModal(`<div class="modal-title">🐾 选择要领养的动物</div><div class="adopt-choices">${cards}</div><div style="text-align:center;margin-top:14px;font-size:12px;color:#8D6E63;">成熟时 ${(CONFIG.MUTATION_RATE*100).toFixed(0)}% 概率变异为品牌包包</div>`);
+  },
+
+  showMutationPopup(animal, product) {
+    this.showModal(`<div class="mutation-popup">
+      <div style="font-size:44px;">🎉</div>
+      <div class="mutation-bag">${product.emoji}</div>
+      <div class="mutation-text">✨ 变异成功！✨</div>
+      <div class="mutation-bag-name">${product.name}</div>
+      <div class="mutation-sub">${animal.name}成熟时发生变异<br>产出了稀有${animal.brandName}包包！</div>
+      <button onclick="FarmGame.closeModal()" style="margin-top:16px;padding:12px 36px;border:none;border-radius:22px;background:linear-gradient(180deg,#FFB74D,#FF9800);color:#fff;font-weight:700;font-size:15px;cursor:pointer;border:2px solid rgba(0,0,0,0.15);text-shadow:0 1px 2px rgba(0,0,0,0.2);">太棒了！</button>
+    </div>`);
+  },
+
+  showModal(html) {
+    const overlay = document.getElementById('modal-overlay');
+    const box = document.getElementById('modal-box');
+    box.style.position = 'relative';
+    box.innerHTML = `<button style="position:absolute;top:8px;right:12px;background:none;border:none;font-size:22px;cursor:pointer;color:#8D6E63;z-index:10;padding:4px 8px;" onclick="FarmGame.closeModal()">✕</button>${html}`;
+    overlay.classList.remove('hidden');
+  },
+
+  closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); },
+
+  // ---- EFFECTS ----
+
+  spawnEmoji(plotId, emoji) {
+    const el = document.querySelector(`.plot[data-plot-id="${plotId}"]`);
+    if (!el) return;
+    const s = document.createElement('span');
+    s.className = 'floating-emoji';
+    s.textContent = emoji;
+    s.style.left = (20 + Math.random() * 60) + '%';
+    s.style.top = '30%';
+    el.appendChild(s);
+    s.addEventListener('animationend', () => s.remove());
+  },
+
+  spawnSparkles(plotId) {
+    const el = document.querySelector(`.plot[data-plot-id="${plotId}"]`);
+    if (!el) return;
+    const arr = ['✨','💫','⭐','🌟','💥','💎'];
+    for (let i = 0; i < 10; i++) {
+      setTimeout(() => {
+        const s = document.createElement('span');
+        s.className = 'sparkle';
+        s.textContent = arr[Math.floor(Math.random()*arr.length)];
+        s.style.left = (5 + Math.random() * 90) + '%';
+        s.style.top = (5 + Math.random() * 90) + '%';
+        el.appendChild(s);
+        s.addEventListener('animationend', () => s.remove());
+      }, i * 50);
+    }
+    el.style.animation = 'goldenPulse 0.9s ease-out';
+    setTimeout(() => el.style.animation = '', 900);
+  },
+
+  switchPanel(name) {
+    activePanel = name;
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.panel === name));
+    this.renderPanel();
+  },
+
+  init() {
+    for (const p of state.plots) {
+      if (!p.empty && p.maturityTime && Date.now() >= p.maturityTime) {}
+    }
+    saveState(state);
+    this.renderAll();
+    document.querySelectorAll('.nav-tab').forEach(t => {
+      t.addEventListener('click', () => this.switchPanel(t.dataset.panel));
+    });
+    this.switchPanel('backpack');
+    timerInterval = setInterval(() => { this.renderGrid(); this.renderHeader(); }, 1000);
+    window.addEventListener('beforeunload', () => saveState(state));
+    window.addEventListener('keydown', e => { if (e.key === 'Escape') this.closeModal(); });
+    console.log('🐴 休闲农场 v2 就绪！FarmGame.resetAll() 重置');
+  }
+};
+
+document.addEventListener('DOMContentLoaded', () => FarmGame.init());
+</script>
+</body>
+</html>
