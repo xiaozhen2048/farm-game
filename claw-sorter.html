@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>抓娃娃分拣员</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;touch-action:none;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;font-family:'PingFang SC','Microsoft YaHei',sans-serif}
+#c{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
+#ui{position:absolute;top:0;left:0;width:100%;pointer-events:none;z-index:10}
+#score-panel{position:absolute;top:max(12px,env(safe-area-inset-top));left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:6px}
+.stat{background:rgba(0,0,0,0.6);border-radius:10px;padding:5px 10px;color:#fff;font-size:12px;text-align:center;min-width:50px;flex:1}
+.stat .val{font-size:18px;font-weight:bold;color:#ffd700;transition:color 0.3s}
+.stat .lbl{font-size:9px;color:#aaa;margin-top:-2px}
+#combo-pop{position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);font-size:40px;font-weight:bold;color:#ffd700;text-shadow:0 0 30px rgba(255,215,0,0.9);opacity:0;pointer-events:none;transition:none;white-space:nowrap}
+#combo-pop.show{animation:comboPop 0.7s ease-out forwards}
+@keyframes comboPop{0%{opacity:1;transform:translate(-50%,-50%) scale(0.3) rotate(-5deg)}30%{opacity:1;transform:translate(-50%,-50%) scale(1.3) rotate(2deg)}100%{opacity:0;transform:translate(-50%,-120%) scale(0.8) rotate(0deg)}}
+#msg{position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);color:#ff4444;font-size:20px;font-weight:bold;opacity:0;pointer-events:none;text-shadow:0 0 10px rgba(255,0,0,0.5)}
+#msg.show{animation:msgPop 1.2s ease-out forwards}
+@keyframes msgPop{0%{opacity:1;transform:translate(-50%,-50%)}30%{opacity:1}100%{opacity:0;transform:translate(-50%,-150%)}}
+#event-banner{position:absolute;top:30%;left:50%;transform:translate(-50%,-50%);font-size:22px;font-weight:bold;opacity:0;pointer-events:none;text-align:center;white-space:nowrap}
+#event-banner.show{animation:bannerFlash 1.5s ease-out forwards}
+@keyframes bannerFlash{0%{opacity:0;transform:translate(-50%,-50%) scale(2)}15%{opacity:1;transform:translate(-50%,-50%) scale(1)}85%{opacity:1}100%{opacity:0}}
+#start-screen,#end-screen{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20;pointer-events:auto}
+#start-screen{background:linear-gradient(180deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)}
+#end-screen{background:rgba(0,0,0,0.88);display:none}
+#start-screen h1{font-size:32px;color:#ffd700;margin-bottom:6px;text-shadow:0 0 30px rgba(255,215,0,0.5)}
+#start-screen .subtitle{font-size:13px;color:#aaa;margin-bottom:24px}
+#start-screen .role{font-size:15px;color:#ff6b6b;margin-bottom:24px;text-align:center;line-height:1.8}
+.btn{background:linear-gradient(135deg,#ffd700,#ffaa00);color:#1a1a2e;border:none;padding:14px 48px;font-size:18px;font-weight:bold;border-radius:30px;cursor:pointer;pointer-events:auto;letter-spacing:2px;box-shadow:0 4px 20px rgba(255,215,0,0.3)}
+.btn:active{transform:scale(0.95)}
+.btn.small{padding:10px 32px;font-size:14px}
+#end-screen h2{font-size:28px;color:#ffd700;margin-bottom:4px}
+#end-screen .final-score{font-size:52px;color:#fff;font-weight:bold;margin:12px 0}
+#end-screen .detail{font-size:13px;color:#aaa;margin-bottom:20px;text-align:center;line-height:2}
+#end-screen .rank{font-size:22px;color:#ff6b6b;margin-bottom:20px}
+#instructions{position:absolute;bottom:max(16px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.35);font-size:11px;pointer-events:none;text-align:center;z-index:5;transition:opacity 0.5s}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div id="score-panel">
+    <div class="stat"><div class="val" id="score-val">0</div><div class="lbl">积分</div></div>
+    <div class="stat"><div class="val" id="combo-val" style="color:#ff6b6b">x1</div><div class="lbl">连击</div></div>
+    <div class="stat"><div class="val" id="lives-val">❤❤❤</div><div class="lbl">机会</div></div>
+    <div class="stat"><div class="val" id="timer-val">60</div><div class="lbl">秒</div></div>
+    <div class="stat"><div class="val" id="diff-val" style="color:#aaa">Lv.1</div><div class="lbl">难度</div></div>
+  </div>
+  <div id="combo-pop"></div>
+  <div id="msg"></div>
+  <div id="event-banner"></div>
+  <div id="start-screen">
+    <h1>🏭 抓娃娃分拣员</h1>
+    <div class="subtitle">—— 你就是娃娃机 ——</div>
+    <div class="role">你是娃娃机里的996机械臂<br>夹住吊牌 → 拖到对应筐里<br>⚠️ 难度会逐渐升级</div>
+    <button class="btn" id="start-btn" ontouchstart="event.stopPropagation()" onmousedown="event.stopPropagation()">开 始 上 班</button>
+  </div>
+  <div id="end-screen">
+    <h2>🔔 下班！</h2>
+    <div class="final-score" id="final-score">0</div>
+    <div class="detail" id="final-detail"></div>
+    <div class="rank" id="rank-text"></div>
+    <button class="btn" id="retry-btn" ontouchstart="event.stopPropagation()" onmousedown="event.stopPropagation()">继 续 加 班</button>
+  </div>
+</div>
+<div id="instructions">👆 按住吊牌 → 拖到对应颜色筐里</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  CLAW MACHINE SORTER — DIFFICULTY ESCALATION EDITION
+// ═══════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+let W, H, scale;
+function resize() {
+  W = canvas.width = window.innerWidth * devicePixelRatio;
+  H = canvas.height = window.innerHeight * devicePixelRatio;
+  scale = Math.min(W / 390, H / 750);
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ─── AUDIO ─────────────────────────────────────
+let audioCtx = null;
+function beep(freq, dur, type='square', vol=0.07) {
+  if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  const t = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t+dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t); o.stop(t+dur);
+}
+function sfxGrab(){beep(700,0.06,'square',0.05);setTimeout(()=>beep(900,0.05,'square',0.04),60)}
+function sfxDrop(){beep(180,0.1,'triangle',0.05)}
+function sfxCorrect(){beep(523,0.08,'triangle',0.06);setTimeout(()=>beep(659,0.08,'triangle',0.06),80);setTimeout(()=>beep(784,0.12,'triangle',0.06),160)}
+function sfxWrong(){beep(100,0.25,'sawtooth',0.07)}
+function sfxMiss(){beep(60,0.35,'sawtooth',0.06)}
+function sfxCombo(){beep(880,0.05,'triangle',0.05);setTimeout(()=>beep(1100,0.05,'triangle',0.05),50);setTimeout(()=>beep(1320,0.07,'triangle',0.05),100)}
+function sfxGolden(){beep(1047,0.1,'triangle',0.07);setTimeout(()=>beep(1319,0.1,'triangle',0.07),100);setTimeout(()=>beep(1568,0.15,'triangle',0.07),200)}
+function sfxTick(){beep(1200,0.02,'sine',0.03)}
+function sfxEvent(){beep(200,0.2,'sawtooth',0.05);setTimeout(()=>beep(300,0.15,'sawtooth',0.05),200)}
+function sfxFlip(){beep(400,0.06,'triangle',0.04);setTimeout(()=>beep(600,0.06,'triangle',0.04),60)}
+
+// ─── GAME STATE ────────────────────────────────
+const STATE = {TITLE:0, PLAYING:1, GAMEOVER:2};
+let state = STATE.TITLE;
+let score = 0, combo = 0, maxCombo = 0, lives = 3, gameTime = 60;
+let correctCount = 0, wrongCount = 0, missCount = 0, goldenCount = 0;
+let timerAcc = 0, beltSpeed = 1, spawnInterval = 2.2;
+let toys = [], junkItems = [], particles = [], baskets = [];
+let claw = null;
+let pointer = {x:W/2, y:H/2, down:false, active:false};
+let heldToy = null;
+let shakeAmount = 0, beltOffset = 0, toySpawnTimer = 0;
+let difficultyLevel = 1;
+let beltDirection = 1;
+let beltEvent = null, beltEventTimer = 0;
+let comboTimer = 0;
+let flashAlpha = 0;
+let scorePopups = [];
+let fogTimer = 0, fogIntensity = 0;
+
+// ─── TOY TYPES ─────────────────────────────────
+const TOY_TYPES = [
+  {name:'bear',  color:'#ff6b6b', basketColor:'#ff6b6b', label:'🐻'},
+  {name:'bunny', color:'#6bc5ff', basketColor:'#6bc5ff', label:'🐰'},
+  {name:'cat',   color:'#51cf66', basketColor:'#51cf66', label:'🐱'},
+  {name:'duck',  color:'#ffd43b', basketColor:'#ffd43b', label:'🐤'},
+  {name:'panda', color:'#ddd',    basketColor:'#ddd',    label:'🐼', isGolden:true},
+];
+
+const JUNK_TYPES = [
+  {name:'can',    color:'#e03131', draw:'can'},
+  {name:'bolt',   color:'#888',    draw:'bolt'},
+  {name:'spring', color:'#aaa',    draw:'spring'},
+  {name:'paper',  color:'#f5f5dc', draw:'paper'},
+];
+
+// ─── DIFFICULTY CURVE ──────────────────────────
+function getDifficultyParams() {
+  const elapsed = 60 - gameTime;
+  const t = Math.min(1, elapsed / 60); // 0→1 over the round
+  // Exponential-ish curves — easy start, brutal end
+  const ease = t < 0.4 ? t*0.5 : (t-0.4)*1.67; // slow then fast
+  return {
+    beltSpeed: 1 + ease * 2.5,              // 1x → 3.5x
+    spawnInterval: 2.2 - ease * 1.6,         // 2.2s → 0.6s
+    tagScale: 1 - ease * 0.55,               // 100% → 45%
+    junkChance: Math.max(0, (ease-0.15)*0.5), // 0 → 25%
+    trickChance: Math.max(0, (ease-0.3)*0.4), // 0 → 28%
+    tagHiddenChance: Math.max(0, (ease-0.45)*0.35), // 0 → 19%
+    goldenChance: 0.03 + ease * 0.05,        // 3% → 8%
+    maxToys: Math.floor(5 + ease * 5),        // 5 → 10
+    fogChance: Math.max(0, (ease-0.5)*0.3),   // 0 → 15%
+    reverseChance: Math.max(0, (ease-0.35)*0.2), // 0 → 13%
+    surgeChance: Math.max(0, (ease-0.25)*0.2),   // 0 → 15%
+    comboDecay: 3 + ease * 4,                  // 3s → 7s decay rate
+    grabRange: 35 - ease * 15,                 // grab range shrinks
+    activeToyTypes: Math.min(TOY_TYPES.length, 2 + Math.floor(ease * (TOY_TYPES.length-1))),
+  };
+}
+
+// ─── DRAWING HELPERS ───────────────────────────
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1),16);
+  let r = (n>>16)&255, g = (n>>8)&255, b = n&255;
+  r = Math.min(255,Math.max(0,Math.round(r*(1+amt))));
+  g = Math.min(255,Math.max(0,Math.round(g*(1+amt))));
+  b = Math.min(255,Math.max(0,Math.round(b*(1+amt))));
+  return `rgb(${r},${g},${b})`;
+}
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r); ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r); ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+
+function drawToy(ctx, x, y, type, s=1, tagOnBottom=false) {
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  const c = type.color;
+  const isGolden = type.isGolden;
+  // Golden glow
+  if (isGolden) {
+    ctx.shadowColor = 'rgba(255,215,0,0.8)';
+    ctx.shadowBlur = 15;
+  }
+  ctx.fillStyle = c;
+  if (type.name === 'bear') {
+    roundRect(ctx, -18,-12,36,34,14); ctx.fill();
+    ctx.fillStyle = shade(c,-0.2);
+    ctx.beginPath(); ctx.arc(-10,-8,6,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(10,-8,6,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = shade(c,-0.05);
+    ctx.beginPath(); ctx.arc(-10,-8,3.5,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(10,-8,3.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-4,2,3,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(6,2,3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(-3.5,2,1.5,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(6.5,2,1.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = shade(c,-0.15); ctx.beginPath(); ctx.arc(1,6,5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(1,5.5,2,0,Math.PI*2); ctx.fill();
+  } else if (type.name === 'bunny') {
+    roundRect(ctx, -16,-10,32,32,12); ctx.fill();
+    ctx.fillStyle = shade(c,-0.15);
+    ctx.beginPath(); ctx.ellipse(-6,-18,5,12,0.1,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6,-18,5,12,-0.1,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = shade(c,0.1);
+    ctx.beginPath(); ctx.ellipse(-6,-18,3,8,0.1,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6,-18,3,8,-0.1,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-4,2,2.5,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(5,2,2.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(-3.5,2,1.2,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(5.5,2,1.2,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = shade(c,-0.1); ctx.beginPath(); ctx.arc(0.5,7,4,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ffaaaa'; ctx.beginPath(); ctx.arc(0.5,6.5,2,0,Math.PI*2); ctx.fill();
+  } else if (type.name === 'cat') {
+    roundRect(ctx, -16,-12,32,30,12); ctx.fill();
+    ctx.fillStyle = shade(c,-0.2);
+    ctx.beginPath(); ctx.moveTo(-12,-10); ctx.lineTo(-6,-22); ctx.lineTo(0,-10); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0,-10); ctx.lineTo(6,-22); ctx.lineTo(12,-10); ctx.fill();
+    ctx.fillStyle = shade(c,0.1);
+    ctx.beginPath(); ctx.moveTo(-8,-10); ctx.lineTo(-4,-18); ctx.lineTo(0,-10); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0,-10); ctx.lineTo(4,-18); ctx.lineTo(8,-10); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-5,1,3,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(5,1,3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.ellipse(-4,1,1.8,2.2,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6,1,1.8,2.2,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = shade(c,-0.1); ctx.beginPath(); ctx.arc(0,8,4.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ffaaaa'; ctx.beginPath(); ctx.arc(0,7.5,2.5,0,Math.PI*2); ctx.fill();
+  } else if (type.name === 'duck') {
+    ctx.fillStyle = c; ctx.beginPath(); ctx.arc(0,2,16,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = shade(c,0.1); ctx.beginPath(); ctx.arc(-2,-14,8,0.3,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ff922b'; ctx.beginPath(); ctx.moveTo(10,-12); ctx.lineTo(18,-8); ctx.lineTo(10,-6); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-4,0,3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(-3.5,0,1.5,0,Math.PI*2); ctx.fill();
+  } else if (type.name === 'panda') {
+    roundRect(ctx, -18,-12,36,34,14);
+    ctx.fill();
+    // Black patches
+    ctx.fillStyle = '#222';
+    ctx.beginPath(); ctx.arc(-10,-8,5.5,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(10,-8,5.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(-4,2,3.5,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(6,2,3.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#222';
+    ctx.beginPath(); ctx.arc(-3.5,2,2,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(6.5,2,2,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(1,7,5,0,Math.PI*2); ctx.fill();
+  }
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+  // "Flip me" indicator if tag is hidden
+  if (tagOnBottom) {
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('↻', 0, -20);
+  }
+  ctx.restore();
+}
+
+function drawTag(ctx, x, y, tagScale=1, realBasketColor=null) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(tagScale, tagScale);
+  ctx.strokeStyle = '#999'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0,-8); ctx.lineTo(0,4); ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.strokeStyle = '#ddd'; ctx.lineWidth=1;
+  roundRect(ctx, -8,4,16,12,2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#e03131'; ctx.font = 'bold 8px sans-serif'; ctx.textAlign='center';
+  ctx.fillText('¥',0,13);
+  // Show real basket color indicator for trick toys
+  if (realBasketColor) {
+    ctx.fillStyle = realBasketColor;
+    ctx.beginPath(); ctx.arc(0, 8, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.arc(0, 8, 2.5, 0, Math.PI*2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawJunk(ctx, x, y, junk, s=1) {
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  if (junk.draw === 'can') {
+    ctx.fillStyle = '#e03131';
+    roundRect(ctx, -10,-14,20,28,4); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-8,-10,16,5);
+    ctx.fillStyle = '#c92a2a';
+    ctx.fillRect(-10,2,20,4);
+    ctx.strokeStyle = '#999'; ctx.lineWidth=1;
+    roundRect(ctx, -10,-14,20,28,4); ctx.stroke();
+  } else if (junk.draw === 'bolt') {
+    ctx.fillStyle = '#888';
+    ctx.beginPath(); ctx.arc(0,-8,6,0,Math.PI*2); ctx.fill();
+    ctx.fillRect(-4,-8,8,18);
+    ctx.fillStyle = '#999';
+    ctx.fillRect(-6,6,12,4);
+    ctx.strokeStyle = '#666';
+    ctx.beginPath(); ctx.moveTo(-8,6); ctx.lineTo(-10,8); ctx.moveTo(8,6); ctx.lineTo(10,8); ctx.stroke();
+  } else if (junk.draw === 'spring') {
+    ctx.strokeStyle = '#aaa'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i=0;i<8;i++) {
+      const yy = -12+i*3.5;
+      ctx.moveTo(-6,yy); ctx.lineTo(6,yy);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = '#888';
+    ctx.beginPath(); ctx.moveTo(-6,-14); ctx.lineTo(-6,14); ctx.moveTo(6,-14); ctx.lineTo(6,14); ctx.stroke();
+  } else if (junk.draw === 'paper') {
+    ctx.fillStyle = '#f5f5dc';
+    ctx.fillRect(-12,-16,24,20);
+    ctx.rotate(0.3);
+    ctx.fillStyle = '#eee8d5';
+    ctx.fillRect(-10,-14,24,20);
+    ctx.strokeStyle = '#ccc'; ctx.lineWidth=1;
+    ctx.strokeRect(-10,-14,24,20);
+    ctx.fillStyle = '#ddd';
+    ctx.fillRect(-8,-10,14,2); ctx.fillRect(-8,-6,18,2); ctx.fillRect(-8,-2,10,2);
+  }
+  ctx.restore();
+}
+
+// ─── DRAW BASKET ───────────────────────────────
+function drawBasket(ctx, b) {
+  const {x, y, w, color} = b;
+  ctx.save();
+  ctx.fillStyle = shade(color, -0.3);
+  ctx.beginPath();
+  ctx.moveTo(x-w/2, y-5); ctx.lineTo(x-w/2-8, y+30);
+  ctx.quadraticCurveTo(x, y+38, x+w/2+8, y+30);
+  ctx.lineTo(x+w/2, y-5); ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = shade(color, -0.5); ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = shade(color, -0.1);
+  roundRect(ctx, x-w/2-4, y-10, w+8, 14, 4); ctx.fill();
+  ctx.strokeStyle = shade(color, -0.3); ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font = `${14*scale}px sans-serif`; ctx.textAlign = 'center';
+  const label = TOY_TYPES.find(t=>t.basketColor===color&&!t.isGolden)?.label
+    || (color==='#ddd'?'⭐':'?');
+  ctx.fillText(label, x, y+5);
+  if (heldToy && heldToy.basketTarget === color) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 3;
+    roundRect(ctx, x-w/2-8, y-18, w+16, 58, 10); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ─── SPAWN ─────────────────────────────────────
+function spawnToy() {
+  const params = getDifficultyParams();
+  const activeTypes = TOY_TYPES.slice(0, params.activeToyTypes);
+
+  // Chance of golden toy
+  let type;
+  if (Math.random() < params.goldenChance) {
+    type = TOY_TYPES.find(t=>t.isGolden) || activeTypes[Math.floor(Math.random()*activeTypes.length)];
+  } else {
+    type = activeTypes[Math.floor(Math.random()*activeTypes.length)];
+  }
+
+  // Trick toy: color mismatches basket
+  const isTrick = !type.isGolden && Math.random() < params.trickChance;
+  let actualBasketColor = type.basketColor;
+  let visualColor = type.color;
+  if (isTrick) {
+    // Pick a different basket color for the trick
+    const otherTypes = activeTypes.filter(t => t.basketColor !== type.basketColor && !t.isGolden);
+    if (otherTypes.length > 0) {
+      const fakeType = otherTypes[Math.floor(Math.random()*otherTypes.length)];
+      actualBasketColor = type.basketColor; // still goes to its own basket
+      visualColor = fakeType.color; // but LOOKS like another type
+    }
+  }
+
+  const tagHidden = !type.isGolden && Math.random() < params.tagHiddenChance;
+  const beltY = H*0.55 + (Math.random()-0.5)*35*scale;
+  const toy = {
+    type,
+    visualColor, // the color the player sees
+    basketTarget: type.basketColor, // the actual target basket
+    isTrick,
+    isGolden: type.isGolden,
+    tagHidden, // tag is underneath, needs flip
+    flipped: false, // has been flipped to reveal tag
+    x: beltDirection > 0 ? -70*scale : W+70*scale,
+    y: beltY,
+    tagOffsetX: (Math.random()-0.5)*18*scale,
+    tagOffsetY: -24*scale + (Math.random()-0.5)*6*scale,
+    bobPhase: Math.random()*Math.PI*2,
+    bobAmp: 0.3 + Math.random()*0.5,
+    grabbed: false,
+    sorted: false,
+    missed: false,
+    fallY: null,
+    fallV: 0,
+    wobble: 0,
+    spawnTime: gameTime,
+  };
+  toys.push(toy);
+}
+
+function spawnJunk() {
+  const junk = JUNK_TYPES[Math.floor(Math.random()*JUNK_TYPES.length)];
+  const beltY = H*0.55 + (Math.random()-0.5)*35*scale;
+  junkItems.push({
+    type: junk,
+    x: beltDirection > 0 ? -50*scale : W+50*scale,
+    y: beltY,
+    bobPhase: Math.random()*Math.PI*2,
+    active: true,
+  });
+}
+
+// ─── INIT ──────────────────────────────────────
+function initGame() {
+  score = 0; combo = 0; maxCombo = 0; lives = 3; gameTime = 60;
+  correctCount = 0; wrongCount = 0; missCount = 0; goldenCount = 0;
+  timerAcc = 0; beltSpeed = 1; spawnInterval = 2.2; difficultyLevel = 1;
+  toys = []; junkItems = []; particles = []; heldToy = null; scorePopups = [];
+  shakeAmount = 0; beltOffset = 0; toySpawnTimer = 0;
+  beltDirection = 1; beltEvent = null; beltEventTimer = 0;
+  comboTimer = 0; flashAlpha = 0; fogTimer = 0; fogIntensity = 0;
+  pointer.down = false; pointer.active = false;
+  claw = { x: W/2, y: H*0.45, targetX: W/2, targetY: H*0.45, open: 0 };
+  const basketW = 58*scale;
+  const totalW = 4 * basketW + 3*14*scale;
+  const startX = (W - totalW)/2 + basketW/2;
+  const basketY = H*0.82;
+  const baseTypes = TOY_TYPES.filter(t=>!t.isGolden);
+  baskets = baseTypes.map((t,i) => ({
+    x: startX + i*(basketW+14*scale), y: basketY, w: basketW,
+    color: t.basketColor, type: t,
+  }));
+  // Add golden/panda basket at the end
+  const pandaType = TOY_TYPES.find(t=>t.isGolden);
+  baskets.push({
+    x: startX + 4*(basketW+14*scale), y: basketY, w: basketW,
+    color: '#ddd', type: pandaType,
+  });
+  document.getElementById('diff-val').textContent = 'Lv.1';
+  document.getElementById('diff-val').style.color = '#aaa';
+  document.getElementById('instructions').style.opacity = '1';
+  updateUI();
+}
+
+function updateUI() {
+  document.getElementById('score-val').textContent = score;
+  const c = combo>=10?'#ff00ff':combo>=5?'#ffd700':combo>=3?'#ff922b':'#ff6b6b';
+  document.getElementById('combo-val').textContent = 'x'+Math.max(1,combo);
+  document.getElementById('combo-val').style.color = c;
+  document.getElementById('lives-val').textContent = '❤'.repeat(Math.max(0,lives))+'🖤'.repeat(Math.max(0,3-lives));
+  document.getElementById('timer-val').textContent = Math.ceil(Math.max(0,gameTime));
+  document.getElementById('timer-val').style.color = gameTime<=10?'#ff4444':gameTime<=20?'#ff922b':'#ffd700';
+  // Difficulty indicator
+  const diff = getDifficultyParams();
+  const newLevel = gameTime>40?1:gameTime>25?2:gameTime>12?3:gameTime>5?4:5;
+  if (newLevel !== difficultyLevel) {
+    difficultyLevel = newLevel;
+    document.getElementById('diff-val').textContent = 'Lv.'+difficultyLevel;
+    const colors = {1:'#aaa',2:'#ffd700',3:'#ff922b',4:'#ff6b6b',5:'#ff00ff'};
+    document.getElementById('diff-val').style.color = colors[difficultyLevel];
+    if (difficultyLevel >= 3) showEventBanner(
+      difficultyLevel===5?'⚠️ 地狱模式':difficultyLevel===4?'⚡ 极速模式':'🔥 难度升级!',
+      difficultyLevel>=4?'#ff4444':'#ff922b'
+    );
+  }
+}
+
+function showComboPop(text) {
+  const el = document.getElementById('combo-pop');
+  el.textContent = text;
+  el.classList.remove('show');
+  void el.offsetWidth; el.classList.add('show');
+}
+function showMsg(text) {
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  el.classList.remove('show');
+  void el.offsetWidth; el.classList.add('show');
+}
+function showEventBanner(text, color='#ffd700') {
+  const el = document.getElementById('event-banner');
+  el.textContent = text;
+  el.style.color = color;
+  el.classList.remove('show');
+  void el.offsetWidth; el.classList.add('show');
+}
+function addScorePopup(x, y, text, color='#fff') {
+  scorePopups.push({x, y, text, color, life: 1, vy: -3*scale});
+}
+function spawnParticles(x, y, color, count=12) {
+  for (let i=0;i<count;i++) {
+    const angle = Math.random()*Math.PI*2;
+    const speed = (1+Math.random()*4)*scale;
+    particles.push({
+      x,y, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed-3*scale,
+      life:1, decay:0.015+Math.random()*0.04,
+      size: 2+Math.random()*5*scale, color,
+    });
+  }
+}
+
+// ─── HANDLE DROP ───────────────────────────────
+function handleDrop(toy) {
+  let matched = false;
+  for (const b of baskets) {
+    const dist = Math.hypot(claw.x-b.x, claw.y-b.y);
+    if (dist < b.w*1.3) {
+      if (toy.basketTarget === b.color) {
+        combo++;
+        maxCombo = Math.max(maxCombo, combo);
+        comboTimer = 0;
+        let pts = 10;
+        if (toy.isGolden) { pts = 30; goldenCount++; sfxGolden(); }
+        else if (toy.isTrick) pts = 20;
+        pts = Math.floor(pts * (1 + Math.floor(combo/4)));
+        score += pts;
+        correctCount++;
+        sfxCorrect();
+        const pCount = toy.isGolden?40:toy.isTrick?25:18;
+        spawnParticles(claw.x, claw.y, b.color, pCount);
+        addScorePopup(claw.x, claw.y-20*scale, '+'+pts, toy.isGolden?'#ffd700':'#fff');
+        const comboText = combo>=15?`🔥🔥 ${combo}连击!!`:
+                          combo>=10?`🔥 ${combo}连击!`:
+                          combo>=5?`💪 ${combo}连击`:
+                          toy.isGolden?'⭐ 金色传说!':'';
+        if (comboText) showComboPop(comboText);
+        if (combo>0 && combo%8===0) { sfxCombo(); flashAlpha=0.3; }
+        if (toy.isGolden) showEventBanner('⭐ 金色传说! +'+pts, '#ffd700');
+      } else {
+        combo = 0; comboTimer = 0;
+        score = Math.max(0, score-8);
+        wrongCount++;
+        sfxWrong();
+        spawnParticles(claw.x, claw.y, '#ff0000', 10);
+        addScorePopup(claw.x, claw.y, '-8', '#ff4444');
+        const reason = toy.isTrick?'🪝 这是伪装玩具!':'放错筐了!';
+        showMsg(reason);
+        shakeAmount = 6*scale;
+      }
+      matched = true; break;
+    }
+  }
+  if (!matched) {
+    toy.fallY = claw.y; toy.fallV = 0; toy.grabbed = false;
+    sfxDrop();
+  } else {
+    toy.sorted = true;
+  }
+  heldToy = null; updateUI();
+}
+
+// ─── GAME UPDATE ───────────────────────────────
+function update(dt) {
+  if (state !== STATE.PLAYING) return;
+
+  // Timer
+  timerAcc += dt;
+  if (timerAcc >= 1) {
+    timerAcc -= 1;
+    gameTime--;
+    if (gameTime <= 10 && gameTime > 0) sfxTick();
+    updateUI();
+    if (gameTime <= 0) { endGame(); return; }
+  }
+
+  const params = getDifficultyParams();
+
+  // Combo decay
+  if (combo > 0 && !heldToy) {
+    comboTimer += dt;
+    if (comboTimer >= params.comboDecay) {
+      combo = Math.max(0, combo-1);
+      comboTimer = 0;
+      if (combo === 0) showMsg('连击断了!');
+      updateUI();
+    }
+  }
+
+  // Belt events
+  if (!beltEvent) {
+    beltEventTimer += dt;
+    if (beltEventTimer > 4 + Math.random()*3) {
+      beltEventTimer = 0;
+      const r = Math.random();
+      if (r < params.surgeChance) {
+        beltEvent = 'surge';
+        beltEventTimer = 0;
+        showEventBanner('⚡ 传送带加速!', '#ff922b');
+        sfxEvent();
+      } else if (r < params.surgeChance + params.reverseChance) {
+        beltEvent = 'reverse';
+        beltDirection *= -1;
+        beltEventTimer = 0;
+        showEventBanner('🔄 传送带反转!', '#ff6b6b');
+        sfxEvent();
+      } else if (r < params.surgeChance + params.reverseChance + params.fogChance) {
+        beltEvent = 'fog';
+        fogIntensity = 0;
+        beltEventTimer = 0;
+        showEventBanner('🌫️ 蒸汽来袭!', '#aaa');
+        sfxEvent();
+      }
+    }
+  }
+  if (beltEvent === 'surge') {
+    beltEventTimer += dt;
+    if (beltEventTimer > 3) { beltEvent = null; }
+  } else if (beltEvent === 'reverse') {
+    beltEventTimer += dt;
+    if (beltEventTimer > 2.5) { beltDirection *= -1; beltEvent = null; }
+  } else if (beltEvent === 'fog') {
+    beltEventTimer += dt;
+    fogIntensity = Math.min(1, fogIntensity + dt*1.5);
+    if (beltEventTimer > 4) { beltEvent = null; }
+  }
+
+  // Fog decay
+  if (beltEvent !== 'fog' && fogIntensity > 0) {
+    fogIntensity = Math.max(0, fogIntensity - dt*2);
+  }
+
+  const effectiveSpeed = params.beltSpeed * (beltEvent==='surge'?2.0:1);
+  beltOffset += 90*scale * effectiveSpeed * dt;
+  if (beltOffset > 40*scale) beltOffset -= 40*scale;
+
+  // Spawn
+  toySpawnTimer += dt;
+  const si = beltEvent==='surge'?params.spawnInterval*0.5:params.spawnInterval;
+  const activeCount = toys.filter(t=>!t.sorted&&!t.missed).length;
+  if (toySpawnTimer >= si && activeCount < params.maxToys) {
+    toySpawnTimer = 0;
+    spawnToy();
+    // Junk spawn
+    if (Math.random() < params.junkChance) spawnJunk();
+  }
+
+  // Update toys
+  for (const toy of toys) {
+    if (toy.sorted) continue;
+    if (toy.grabbed && heldToy === toy) continue;
+    if (toy.fallY !== null) {
+      toy.fallV += 700*scale * dt;
+      toy.fallY += toy.fallV * dt;
+      if (toy.fallY > H+120) toy.missed = true;
+      continue;
+    }
+    toy.x += 100*scale * effectiveSpeed * beltDirection * dt;
+    toy.bobPhase += dt*3;
+    toy.y += Math.sin(toy.bobPhase)*toy.bobAmp*scale;
+    // Wobble for trick toys
+    if (toy.isTrick) {
+      toy.wobble += dt*8;
+    }
+    // Check off screen
+    const offRight = toy.x > W+80*scale && beltDirection > 0;
+    const offLeft = toy.x < -80*scale && beltDirection < 0;
+    if ((offRight || offLeft) && !toy.missed) {
+      toy.missed = true; missCount++; combo = 0; comboTimer = 0; lives--;
+      sfxMiss();
+      shakeAmount = Math.max(shakeAmount, 10*scale);
+      showMsg(toy.isGolden?'💀 金色传说溜走了!':'错过了一个!');
+      if (lives <= 0) { endGame(); return; }
+      updateUI();
+    }
+  }
+  toys = toys.filter(t => !t.sorted && !t.missed);
+
+  // Update junk
+  for (const j of junkItems) j.x += 100*scale * effectiveSpeed * beltDirection * dt;
+  junkItems = junkItems.filter(j => {
+    if (beltDirection>0) return j.x < W+60*scale;
+    return j.x > -60*scale;
+  });
+
+  // Claw position
+  if (pointer.active || pointer.down) {
+    claw.targetX = pointer.x;
+    claw.targetY = pointer.y - 65*scale;
+  }
+  claw.x += (claw.targetX - claw.x)*22*dt;
+  claw.y += (claw.targetY - claw.y)*22*dt;
+
+  // Flip tag
+  if (pointer.down && heldToy && heldToy.tagHidden && !heldToy.flipped) {
+    // Double-tap detection: if holding and toy hasn't moved much, flip
+    heldToy.flipped = true;
+    heldToy.tagOffsetY = 22*scale; // tag appears on top
+    sfxFlip();
+    showComboPop('🔄 翻过来了!');
+  }
+
+  // Grab detection
+  if (pointer.down && !heldToy) {
+    let closest = null, closestDist = params.grabRange*scale;
+    for (const toy of toys) {
+      if (toy.grabbed || toy.sorted || toy.fallY!==null) continue;
+      if (toy.tagHidden && !toy.flipped) continue; // can't grab hidden tag
+      const tx = toy.x + toy.tagOffsetX;
+      const ty = toy.y + toy.tagOffsetY;
+      const d = Math.hypot(claw.x-tx, claw.y-ty);
+      if (d < closestDist) { closestDist = d; closest = toy; }
+    }
+    if (closest) {
+      closest.grabbed = true; heldToy = closest;
+      claw.open = 1; sfxGrab();
+    }
+  }
+
+  // Held toy follows claw
+  if (heldToy) {
+    heldToy.x = claw.x - heldToy.tagOffsetX;
+    heldToy.y = claw.y - heldToy.tagOffsetY;
+  }
+
+  // Claw animation
+  claw.open += ((heldToy?1:0)-claw.open)*18*dt;
+
+  // Release
+  if (!pointer.down && heldToy) handleDrop(heldToy);
+
+  // Particles
+  for (const p of particles) { p.x+=p.vx; p.y+=p.vy; p.vy+=120*scale*dt; p.life-=p.decay; }
+  particles = particles.filter(p=>p.life>0);
+
+  // Score popups
+  for (const p of scorePopups) { p.y+=p.vy; p.vy-=0.5*scale; p.life-=dt*1.2; }
+  scorePopups = scorePopups.filter(p=>p.life>0);
+
+  // Shake & flash
+  if (shakeAmount>0) shakeAmount*=Math.pow(0.03,dt);
+  if (shakeAmount<0.1) shakeAmount=0;
+  if (flashAlpha>0) flashAlpha=Math.max(0,flashAlpha-dt*2);
+
+  updateUI();
+}
+
+// ─── RENDER ────────────────────────────────────
+function render() {
+  ctx.clearRect(0,0,W,H);
+  const sx = shakeAmount*(Math.random()*2-1);
+  const sy = shakeAmount*(Math.random()*2-1);
+  ctx.save(); ctx.translate(sx,sy);
+
+  // Background
+  const bgGrad = ctx.createLinearGradient(0,0,0,H);
+  bgGrad.addColorStop(0,'#1a1a2e'); bgGrad.addColorStop(0.4,'#1a1e30'); bgGrad.addColorStop(1,'#0d1117');
+  ctx.fillStyle = bgGrad; ctx.fillRect(-20,-20,W+40,H+40);
+
+  // Factory walls
+  const wallTop = H*0.35, wallH = H*0.2;
+  ctx.fillStyle = '#252536'; ctx.fillRect(0,wallTop,W,wallH);
+  for (let i=0;i<8;i++) {
+    ctx.fillStyle = i%2===0?'#2a2a3e':'#252536';
+    ctx.fillRect(i*W/8, wallTop+0.02*H, W/8-2, wallH-0.04*H);
+    ctx.strokeStyle='#333'; ctx.lineWidth=1;
+    ctx.strokeRect(i*W/8, wallTop+0.02*H, W/8-2, wallH-0.04*H);
+  }
+  for (let i=0;i<16;i++) {
+    ctx.fillStyle='#444';
+    ctx.beginPath(); ctx.arc(i*W/16+W/32,wallTop+0.03*H,3*scale,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(i*W/16+W/32,wallTop+wallH-0.03*H,3*scale,0,Math.PI*2); ctx.fill();
+  }
+
+  // Warning lights
+  if (difficultyLevel>=4) {
+    const bl = 0.4+Math.sin(Date.now()*0.015)*0.3;
+    ctx.fillStyle = `rgba(255,0,0,${bl})`;
+    ctx.beginPath(); ctx.arc(W-20*scale, wallTop+12*scale, 8*scale, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(20*scale, wallTop+12*scale, 8*scale, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Conveyor belt
+  const beltY = H*0.52, beltH = 16*scale;
+  ctx.fillStyle='#1a1a1a'; ctx.fillRect(0,beltY,W,beltH+8*scale);
+  ctx.fillStyle='#2d2d2d'; ctx.fillRect(0,beltY,W,beltH);
+  ctx.strokeStyle='#3d3d3d'; ctx.lineWidth=1.5;
+  for (let x=-beltOffset;x<W+40*scale;x+=40*scale) {
+    ctx.beginPath(); ctx.moveTo(x,beltY); ctx.lineTo(x+15*scale,beltY+beltH); ctx.stroke();
+  }
+  // Direction arrow
+  if (beltDirection < 0) {
+    ctx.fillStyle='rgba(255,100,100,0.15)';
+    ctx.fillRect(0,beltY,W,beltH);
+  }
+  ctx.strokeStyle='#555'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(0,beltY); ctx.lineTo(W,beltY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,beltY+beltH); ctx.lineTo(W,beltY+beltH); ctx.stroke();
+
+  // Rollers
+  const rollerR=8*scale;
+  for (let rx=rollerR;rx<W;rx+=rollerR*3) {
+    ctx.fillStyle='#444';
+    ctx.beginPath(); ctx.arc(rx,beltY-2,rollerR,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.stroke();
+    ctx.beginPath(); ctx.arc(rx,beltY+beltH+2,rollerR,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#555'; ctx.stroke();
+  }
+
+  // Baskets
+  for (const b of baskets) drawBasket(ctx, b);
+  ctx.fillStyle='rgba(255,255,255,0.4)';
+  ctx.font=`${9*scale}px "PingFang SC","Microsoft YaHei",sans-serif`; ctx.textAlign='center';
+  for (const b of baskets) {
+    const label = TOY_TYPES.find(t=>t.basketColor===b.color)?.name.toUpperCase()||'GOLDEN';
+    ctx.fillText(label,b.x,b.y-22*scale);
+  }
+
+  // Junk on belt
+  for (const j of junkItems) {
+    if (j.x>W+60*scale||j.x<-60*scale) continue;
+    drawJunk(ctx, j.x, j.y+beltH*0.1, j.type, scale*0.8);
+    // X marker showing it's not grabbable
+    ctx.strokeStyle='rgba(255,0,0,0.3)'; ctx.lineWidth=1;
+    const jx=j.x, jy=j.y;
+    ctx.beginPath(); ctx.moveTo(jx-6*scale,jy-6*scale); ctx.lineTo(jx+6*scale,jy+6*scale); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(jx+6*scale,jy-6*scale); ctx.lineTo(jx-6*scale,jy+6*scale); ctx.stroke();
+  }
+
+  // Toys on belt
+  for (const toy of toys) {
+    if (toy.sorted) continue;
+    let ty = toy.y;
+    if (toy.fallY!==null) ty = toy.fallY;
+    if (toy===heldToy) continue;
+    const visualType = {...toy.type, color: toy.visualColor||toy.type.color};
+    drawToy(ctx, toy.x, ty, visualType, scale, toy.tagHidden&&!toy.flipped);
+    if (!toy.tagHidden || toy.flipped) {
+      const tagS = getDifficultyParams().tagScale;
+      const tx = toy.x + toy.tagOffsetX;
+      const tty = ty + toy.tagOffsetY;
+      const showRealColor = toy.isTrick ? toy.basketTarget : null;
+      drawTag(ctx, tx, tty, tagS, showRealColor);
+    }
+    // Grab highlight
+    if (pointer.down && !heldToy && (!toy.tagHidden||toy.flipped)) {
+      const tx = toy.x + toy.tagOffsetX;
+      const tty = ty + toy.tagOffsetY;
+      const d = Math.hypot(claw.x-tx, claw.y-tty);
+      const range = getDifficultyParams().grabRange*scale;
+      if (d < range) {
+        ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=2;
+        ctx.setLineDash([4,4]);
+        ctx.beginPath(); ctx.arc(tx,tty,range*0.8,0,Math.PI*2); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+    // Golden sparkle
+    if (toy.isGolden) {
+      const sp = Math.sin(Date.now()*0.01+toy.bobPhase)*0.5+0.5;
+      ctx.fillStyle=`rgba(255,215,0,${sp*0.3})`;
+      ctx.beginPath(); ctx.arc(toy.x,toy.y,28*scale,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  // Held toy (drawn on top)
+  if (heldToy) {
+    const visualType = {...heldToy.type, color: heldToy.visualColor||heldToy.type.color};
+    drawToy(ctx, heldToy.x, heldToy.y, visualType, scale*1.15, false);
+    if (!heldToy.tagHidden || heldToy.flipped) {
+      const tagS = getDifficultyParams().tagScale;
+      const tx = heldToy.x + heldToy.tagOffsetX;
+      const tty = heldToy.y + heldToy.tagOffsetY;
+      drawTag(ctx, tx, tty, tagS, heldToy.isTrick?heldToy.basketTarget:null);
+    }
+  }
+
+  // Claw
+  drawClaw();
+
+  // Fog overlay
+  if (fogIntensity > 0.01) {
+    const fogAlpha = fogIntensity * 0.55;
+    const fogGrad = ctx.createLinearGradient(0,beltY-20*scale,0,beltY+beltH+20*scale);
+    fogGrad.addColorStop(0,`rgba(200,210,220,0)`);
+    fogGrad.addColorStop(0.3,`rgba(200,210,220,${fogAlpha})`);
+    fogGrad.addColorStop(0.7,`rgba(200,210,220,${fogAlpha})`);
+    fogGrad.addColorStop(1,`rgba(200,210,220,0)`);
+    ctx.fillStyle = fogGrad;
+    ctx.fillRect(0,beltY-20*scale,W,beltH+40*scale);
+  }
+
+  // Particles
+  for (const p of particles) {
+    ctx.fillStyle = p.color.replace(')',`,${p.life})`).replace('rgb','rgba');
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
+  }
+
+  // Score popups
+  for (const p of scorePopups) {
+    ctx.fillStyle = p.color.replace(')',`,${p.life})`).replace('rgb','rgba');
+    ctx.font = `bold ${16*scale}px "PingFang SC","Microsoft YaHei",sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(p.text, p.x, p.y);
+  }
+
+  // Warning edge
+  const warnAlpha = 0.15 + Math.sin(Date.now()*0.015)*0.08;
+  if (beltDirection > 0) {
+    const eg = ctx.createLinearGradient(W-60*scale,0,W,0);
+    eg.addColorStop(0,`rgba(255,0,0,0)`); eg.addColorStop(1,`rgba(255,0,0,${warnAlpha})`);
+    ctx.fillStyle=eg; ctx.fillRect(W-60*scale,0,60*scale,H);
+  } else {
+    const eg = ctx.createLinearGradient(0,0,60*scale,0);
+    eg.addColorStop(0,`rgba(255,0,0,${warnAlpha})`); eg.addColorStop(1,`rgba(255,0,0,0)`);
+    ctx.fillStyle=eg; ctx.fillRect(0,0,60*scale,H);
+  }
+
+  ctx.restore();
+
+  // Claw arm (outside shake)
+  if (state===STATE.PLAYING) {
+    ctx.strokeStyle='#666'; ctx.lineWidth=3*scale; ctx.setLineDash([8*scale,4*scale]);
+    ctx.beginPath(); ctx.moveTo(claw.x,15*scale); ctx.lineTo(claw.x,claw.y-35*scale); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Flash overlay
+  if (flashAlpha>0) {
+    ctx.fillStyle=`rgba(255,255,255,${flashAlpha})`;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  // Difficulty badge
+  if (state===STATE.PLAYING && difficultyLevel>=3) {
+    const bl = 0.5+Math.sin(Date.now()*0.008)*0.3;
+    ctx.fillStyle=`rgba(255,0,0,${bl})`;
+    ctx.font = `bold ${11*scale}px "PingFang SC","Microsoft YaHei",sans-serif`;
+    ctx.textAlign='right';
+    ctx.fillText(`⚠ Lv.${difficultyLevel}`, W-12*scale, H*0.33);
+  }
+}
+
+function drawClaw() {
+  if (state!==STATE.PLAYING) return;
+  const {x,y,open} = claw;
+  ctx.save(); ctx.translate(x,y);
+  // Arm shadow
+  ctx.fillStyle='rgba(0,0,0,0.3)';
+  roundRect(ctx,-3*scale,-30*scale,8*scale,30*scale,3*scale); ctx.fill();
+  // Arm
+  ctx.fillStyle='#999'; ctx.strokeStyle='#666'; ctx.lineWidth=2*scale;
+  roundRect(ctx,-4*scale,-30*scale,8*scale,30*scale,3*scale); ctx.fill(); ctx.stroke();
+  // Pivot
+  const grad = ctx.createRadialGradient(0,0,2*scale,0,0,8*scale);
+  grad.addColorStop(0,'#bbb'); grad.addColorStop(1,'#777');
+  ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(0,0,7*scale,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#555'; ctx.lineWidth=1.5; ctx.stroke();
+  // Jaws
+  const jw = 30*scale*(1-open), jl = 38*scale;
+  ctx.strokeStyle='#bbb'; ctx.lineWidth=Math.max(1,5*scale); ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-jw,jl*0.6); ctx.lineTo(-jw*0.65,jl); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(jw,jl*0.6); ctx.lineTo(jw*0.65,jl); ctx.stroke();
+  // Jaw highlights
+  ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=Math.max(0.5,1.5*scale);
+  ctx.beginPath(); ctx.moveTo(0,-1); ctx.lineTo(-jw,jl*0.6-1); ctx.lineTo(-jw*0.65,jl-1); ctx.stroke();
+  // Tips
+  ctx.fillStyle='#ddd';
+  ctx.beginPath(); ctx.arc(-jw*0.65,jl,5*scale,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(jw*0.65,jl,5*scale,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+// ─── END GAME ──────────────────────────────────
+function endGame() {
+  state = STATE.GAMEOVER;
+  document.getElementById('end-screen').style.display='flex';
+  document.getElementById('final-score').textContent=score;
+  document.getElementById('final-detail').innerHTML=
+    `✅ 正确: ${correctCount} &nbsp;|&nbsp; ❌ 错误: ${wrongCount}<br>💨 错过: ${missCount} &nbsp;|&nbsp; ⭐ 金色: ${goldenCount}<br>🔥 最大连击: ${maxCombo} &nbsp;|&nbsp; 📈 最高难度: Lv.${difficultyLevel}`;
+  let rank;
+  if (score>=300) rank='🏆 传奇分拣员';
+  else if (score>=180) rank='🥇 金牌分拣员';
+  else if (score>=100) rank='🥈 银牌分拣员';
+  else if (score>=40) rank='🥉 铜牌分拣员';
+  else rank='📦 实习生，明天不用来了';
+  document.getElementById('rank-text').textContent=rank;
+  document.getElementById('instructions').style.opacity='0';
+}
+
+function startGame() {
+  initGame();
+  state=STATE.PLAYING;
+  document.getElementById('start-screen').style.display='none';
+  document.getElementById('end-screen').style.display='none';
+  document.getElementById('instructions').style.opacity='1';
+  if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+}
+
+// ─── INPUT ─────────────────────────────────────
+function getPos(e) {
+  if (e.touches&&e.touches.length>0) return {x:e.touches[0].clientX*devicePixelRatio,y:e.touches[0].clientY*devicePixelRatio};
+  if (e.changedTouches&&e.changedTouches.length>0) return {x:e.changedTouches[0].clientX*devicePixelRatio,y:e.changedTouches[0].clientY*devicePixelRatio};
+  return {x:e.clientX*devicePixelRatio,y:e.clientY*devicePixelRatio};
+}
+canvas.addEventListener('touchstart',e=>{e.preventDefault();if(state!==STATE.PLAYING)return;const p=getPos(e);pointer.x=p.x;pointer.y=p.y;pointer.down=true;pointer.active=true},{passive:false});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();if(state!==STATE.PLAYING)return;const p=getPos(e);pointer.x=p.x;pointer.y=p.y},{passive:false});
+canvas.addEventListener('touchend',e=>{e.preventDefault();pointer.down=false;pointer.active=false});
+canvas.addEventListener('touchcancel',e=>{pointer.down=false;pointer.active=false});
+canvas.addEventListener('mousedown',e=>{if(state!==STATE.PLAYING)return;const p=getPos(e);pointer.x=p.x;pointer.y=p.y;pointer.down=true;pointer.active=true});
+canvas.addEventListener('mousemove',e=>{if(state!==STATE.PLAYING)return;const p=getPos(e);pointer.x=p.x;pointer.y=p.y});
+canvas.addEventListener('mouseup',e=>{pointer.down=false;pointer.active=false});
+canvas.addEventListener('mouseleave',e=>{pointer.down=false;pointer.active=false});
+
+// Buttons
+document.getElementById('start-btn').addEventListener('click',startGame);
+document.getElementById('start-btn').addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();startGame()});
+document.getElementById('retry-btn').addEventListener('click',startGame);
+document.getElementById('retry-btn').addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();startGame()});
+
+// ─── MAIN LOOP ─────────────────────────────────
+let lastTime=performance.now();
+function loop(time){
+  const dt=Math.min(0.1,(time-lastTime)/1000);
+  lastTime=time;
+  update(dt); render();
+  requestAnimationFrame(loop);
+}
+initGame();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

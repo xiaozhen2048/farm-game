@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>便利店员の日常</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;touch-action:none;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;font-family:'PingFang SC','Microsoft YaHei',sans-serif}
+#c{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
+#ui{position:absolute;top:0;left:0;width:100%;pointer-events:none;z-index:10}
+#top-bar{position:absolute;top:max(8px,env(safe-area-inset-top));left:8px;right:8px;display:flex;gap:5px}
+.sb{background:rgba(0,0,0,0.65);border-radius:8px;padding:4px 7px;color:#fff;text-align:center;flex:1}
+.sb .sv{font-size:15px;font-weight:bold;line-height:1.2}
+.sb .sl{font-size:8px;color:#aaa;line-height:1}
+.bwrap{background:rgba(255,255,255,0.12);border-radius:2px;height:3px;margin-top:2px;overflow:hidden}
+.bfill{border-radius:2px;height:100%}
+#overlay{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;z-index:20;pointer-events:auto}
+#start-panel,#end-panel{display:flex;flex-direction:column;align-items:center;padding:30px 24px;border-radius:20px;text-align:center;max-width:340px;width:90%}
+#start-panel{background:linear-gradient(180deg,rgba(30,30,50,0.95),rgba(20,20,40,0.98))}
+#end-panel{background:rgba(0,0,0,0.92);display:none}
+#start-panel h1{font-size:28px;color:#ffd700;margin-bottom:4px}
+#start-panel .st{font-size:12px;color:#999;margin-bottom:4px}
+#start-panel .sd{font-size:13px;color:#bbb;margin-bottom:16px;line-height:1.7}
+.btn{background:linear-gradient(135deg,#ffd700,#f0a000);color:#1a1a2e;border:none;padding:12px 38px;font-size:16px;font-weight:bold;border-radius:24px;cursor:pointer;pointer-events:auto;letter-spacing:1px;margin:3px}
+.btn:active{transform:scale(0.94)}
+.btn2{background:linear-gradient(135deg,#ff6b6b,#c92a2a);color:#fff}
+.btn3{background:linear-gradient(135deg,#51cf66,#2b8a3e);color:#fff}
+.btn4{background:linear-gradient(135deg,#6bc5ff,#339af0);color:#fff}
+#end-panel h2{font-size:24px;color:#ffd700;margin-bottom:4px}
+#end-panel .ef{font-size:42px;color:#fff;font-weight:bold;margin:8px 0}
+#end-panel .ed{font-size:12px;color:#aaa;margin-bottom:12px;line-height:1.7}
+#end-panel .er{font-size:18px;color:#ff6b6b;margin-bottom:12px}
+#actions{position:absolute;bottom:max(16px,env(safe-area-inset-bottom));left:0;right:0;display:flex;gap:6px;justify-content:center;pointer-events:auto;padding:0 10px;flex-wrap:wrap;z-index:5}
+#actions .btn{display:none;font-size:13px;padding:8px 18px}
+#actions .btn.on{display:inline-block}
+#dialogue{position:absolute;top:22%;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.93);color:#333;padding:6px 14px;border-radius:12px;font-size:13px;font-weight:bold;opacity:0;pointer-events:none;white-space:nowrap;max-width:80%;text-align:center;z-index:6}
+#dialogue.on{opacity:1;animation:dFade 1.8s ease-out forwards}
+@keyframes dFade{0%,70%{opacity:1}100%{opacity:0}}
+#choice-box{position:absolute;top:28%;left:10%;right:10%;display:none;flex-direction:column;gap:6px;z-index:25;pointer-events:auto}
+#choice-box.on{display:flex}
+#choice-box .btn{font-size:13px;padding:10px 16px;text-align:center;white-space:normal}
+#hint{position:absolute;bottom:max(90px,calc(env(safe-area-inset-bottom) + 70px));left:50%;transform:translateX(-50%);color:#ffd700;font-size:13px;pointer-events:none;text-align:center;white-space:nowrap;text-shadow:0 0 8px rgba(0,0,0,0.6);font-weight:bold;z-index:5}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div id="top-bar">
+    <div class="sb"><div class="sv" id="phase-txt">🌅 早班</div><div class="sl">时段</div><div class="bwrap"><div class="bfill" id="phase-bar" style="width:0%;background:#ffd700"></div></div></div>
+    <div class="sb"><div class="sv" id="mood-txt">😊</div><div class="sl">心情</div><div class="bwrap"><div class="bfill" id="mood-bar" style="width:70%;background:#ff922b"></div></div></div>
+    <div class="sb"><div class="sv" id="eng-txt">💪</div><div class="sl">体力</div><div class="bwrap"><div class="bfill" id="eng-bar" style="width:100%;background:#51cf66"></div></div></div>
+    <div class="sb"><div class="sv" id="money-txt">¥0</div><div class="sl">工资</div></div>
+    <div class="sb"><div class="sv" id="star-txt">⭐3.5</div><div class="sl">评分</div></div>
+  </div>
+  <div id="dialogue"></div>
+  <div id="choice-box"></div>
+  <div id="overlay"><div id="start-panel">
+    <h1>🏪 便利店员の日常</h1>
+    <div class="st">—— 打工人的一天 ——</div>
+    <div class="sd">收银 · 理货 · 打扫 · 接待<br>抓小偷 · 喂猫咪 · 忍刁难 · 拿小费<br>一个便利店店员平凡而忙碌的一天</div>
+    <button class="btn" id="start-btn">开 始 上 班</button>
+  </div></div>
+  <div id="end-panel" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:25;pointer-events:auto;background:rgba(0,0,0,0.92);border-radius:20px;padding:30px 24px;text-align:center;max-width:340px;width:90%">
+    <h2>🔔 交班！</h2>
+    <div class="ef" id="final-salary">¥0</div>
+    <div class="ed" id="final-detail"></div>
+    <div class="er" id="rank-text"></div>
+    <button class="btn" id="retry-btn">明 天 继 续</button>
+  </div>
+</div>
+<div id="hint"></div>
+<div id="actions">
+  <button class="btn on" id="btn-scan">📷 扫码</button>
+  <button class="btn" id="btn-bag">🛍️ 装袋</button>
+  <button class="btn" id="btn-pay">💳 收款</button>
+  <button class="btn btn2" id="btn-watch">👀 盯住</button>
+  <button class="btn btn3" id="btn-pet">🐱 喂猫</button>
+  <button class="btn btn4" id="btn-clean">🧹 清理</button>
+  <button class="btn btn3" id="btn-stock">📦 补货</button>
+  <button class="btn btn4" id="btn-check">📋 查保质期</button>
+  <button class="btn" id="btn-rest">☕ 休息</button>
+</div>
+<script>
+// ═══════════════════════════════════════════════════════════
+//  CONVENIENCE STORE SIMULATOR — FULL EDITION
+// ═══════════════════════════════════════════════════════════
+
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+let W,H,S;
+function R(){W=canvas.width=innerWidth*devicePixelRatio;H=canvas.height=innerHeight*devicePixelRatio;S=Math.min(W/390,H/750);canvas.style.width=innerWidth+'px';canvas.style.height=innerHeight+'px'}
+R();window.addEventListener('resize',R);
+
+// AUDIO ────────────────────────────────────────
+let AC=null;
+function B(f,d,t='square',v=0.05){if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();const ct=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(v,ct);g.gain.exponentialRampToValueAtTime(0.001,ct+d);o.connect(g);g.connect(AC.destination);o.start(ct);o.stop(ct+d)}
+function sBeep(){B(1200,0.06,'sine',0.04)}
+function sPay(){B(800,0.08,'triangle',0.05);setTimeout(()=>B(1000,0.08,'triangle',0.05),100)}
+function sBad(){B(120,0.25,'sawtooth',0.06)}
+function sCat(){B(600,0.08,'triangle',0.05);setTimeout(()=>B(800,0.08,'triangle',0.05),100);setTimeout(()=>B(1000,0.12,'triangle',0.05),200)}
+function sThief(){B(180,0.2,'sawtooth',0.05);setTimeout(()=>B(130,0.3,'sawtooth',0.05),200)}
+function sTip(){B(523,0.08,'triangle',0.04);setTimeout(()=>B(659,0.08,'triangle',0.04),80);setTimeout(()=>B(784,0.1,'triangle',0.04),160)}
+function sClean(){for(let i=0;i<5;i++)setTimeout(()=>B(300+Math.random()*200,0.03,'sine',0.015),i*70)}
+function sStock(){B(600,0.06,'triangle',0.04);setTimeout(()=>B(800,0.06,'triangle',0.04),100)}
+function sExpire(){B(400,0.08,'sine',0.04);setTimeout(()=>B(300,0.08,'sine',0.04),100)}
+
+// HELPERS ──────────────────────────────────────
+function SH(hex,amt){const n=parseInt(hex.slice(1),16);let r=(n>>16)&255,g=(n>>8)&255,b=n&255;r=Math.min(255,Math.max(0,Math.round(r*(1+amt))));g=Math.min(255,Math.max(0,Math.round(g*(1+amt))));b=Math.min(255,Math.max(0,Math.round(b*(1+amt))));return `rgb(${r},${g},${b})`}
+function RR(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath()}
+function P(x,y,c,n=8){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=(1+Math.random()*3)*S;G.particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-2*S,life:1,decay:0.02+Math.random()*0.04,size:1+Math.random()*3*S,color:c})}}
+function D(t,d=1800){const e=document.getElementById('dialogue');e.textContent=t;e.classList.remove('on');void e.offsetWidth;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),d)}
+function showChoices(choices){const b=document.getElementById('choice-box');b.innerHTML='';choices.forEach((c,i)=>{const btn=document.createElement('button');btn.className='btn'+(c.style||'');btn.textContent=c.label;btn.addEventListener('click',()=>{b.classList.remove('on');b.innerHTML='';c.action()});btn.addEventListener('touchend',e=>{e.preventDefault();b.classList.remove('on');b.innerHTML='';c.action()});b.appendChild(btn)});b.classList.add('on')}
+function hideBtns(){['btn-scan','btn-bag','btn-pay','btn-watch','btn-pet','btn-clean','btn-stock','btn-check','btn-rest'].forEach(id=>document.getElementById(id).classList.remove('on'))}
+function showB(id){document.getElementById(id).classList.add('on')}
+
+// GAME STATE ───────────────────────────────────
+let G={
+  phase:0, phaseTime:0, // 0=morning 1=noon 2=afternoon 3=evening
+  mood:70, energy:100, money:0, rating:3.5,
+  customersServed:0, tipsGot:0, thievesCaught:0, catsPetted:0, expiredFound:0,
+  customer:null, items:[], scanned:[], bagged:[],
+  step:'idle', // idle|entering|browsing|scanning|bagging|paying|leaving
+  event:null, eventT:0, idleT:0,
+  patience:100, patienceRate:0,
+  shelfState:[3,3,3], // stock levels for 3 shelves (0-5)
+  spill:false, cat:false, thiefMode:false,
+  animT:0, shake:0, flash:0,
+  particles:[], pops:[],
+};
+
+const PHASES=['🌅 早高峰','☀️ 午间','🌤 午后','🌆 晚高峰'];
+const PHASE_LEN=20; // seconds per phase (80s total = ~5min game)
+
+const ITEMS=[
+  {n:'三明治',e:'🥪',p:12,c:'#ffd43b'},{n:'饭团',e:'🍙',p:6,c:'#fff'},{n:'咖啡',e:'☕',p:15,c:'#8B4513'},
+  {n:'薯片',e:'🍟',p:8,c:'#ff922b'},{n:'巧克力',e:'🍫',p:10,c:'#6B3A2E'},{n:'便当',e:'🍱',p:22,c:'#ff6b6b'},
+  {n:'冰淇淋',e:'🍦',p:7,c:'#f8c9d4'},{n:'啤酒',e:'🍺',p:12,c:'#ffd43b'},{n:'矿泉水',e:'💧',p:2,c:'#6bc5ff'},
+  {n:'口香糖',e:'🫧',p:5,c:'#51cf66'},{n:'包子',e:'🥟',p:4,c:'#f5deb3'},{n:'关东煮',e:'🍢',p:3,c:'#d2691e'},
+];
+
+const CT={
+  office:{name:'上班族',emoji:'👔',pat:90,items:[1,2],mood:0,tip:0.15,desc:'匆忙的白领'},
+  student:{name:'学生',emoji:'🎒',pat:110,items:[1,3],mood:1,tip:0.08,desc:'放学买零食'},
+  auntie:{name:'大妈',emoji:'👵',pat:80,items:[2,5],mood:3,tip:0.35,desc:'爱唠嗑'},
+  smiley:{name:'笑脸常客',emoji:'😊',pat:130,items:[1,2],mood:8,tip:0.55,desc:'总是笑呵呵'},
+  difficult:{name:'刁难客人',emoji:'😤',pat:45,items:[1,3],mood:-12,tip:0,desc:'很挑剔'},
+  drunk:{name:'醉汉',emoji:'🍺',pat:55,items:[1,2],mood:-4,tip:0.25,desc:'摇摇晃晃'},
+  blogger:{name:'探店博主',emoji:'📱',pat:65,items:[1,2],mood:2,tip:0.45,desc:'正在直播'},
+  kid:{name:'小孩',emoji:'👶',pat:35,items:[1,2],mood:-2,tip:0,desc:'到处乱跑'},
+  thief:{name:'可疑人物',emoji:'🕵️',pat:55,items:[1,2],mood:-6,tip:0,desc:'东张西望',thief:true},
+};
+
+function pickCType(){
+  const h=G.phase;
+  const r=Math.random();
+  if(r<0.06&&G.phase>=1)return'thief';
+  if(h===0&&r<0.45)return'office';
+  if(h===1&&r<0.35)return'office';
+  if(h===2&&r<0.35)return'student';
+  if(h===3&&r<0.25)return'drunk';
+  if(r<0.07)return'smiley';
+  if(r<0.16&&G.rating<3.2)return'difficult';
+  if(r<0.25)return'auntie';
+  if(G.rating>=3.5&&r<0.12)return'blogger';
+  if(h===2&&r<0.15)return'kid';
+  return'office';
+}
+
+function initGame(){
+  G={phase:0,phaseTime:0,mood:70,energy:100,money:0,rating:3.5,customersServed:0,tipsGot:0,thievesCaught:0,catsPetted:0,expiredFound:0,customer:null,items:[],scanned:[],bagged:[],step:'idle',event:null,eventT:0,idleT:0.5,patience:100,patienceRate:0,shelfState:[3,3,3],spill:false,cat:false,thiefMode:false,animT:0,shake:0,flash:0,particles:[],pops:[]};
+  hideBtns(); showB('btn-scan');
+  document.getElementById('start-panel').parentElement.style.display='flex';
+  document.getElementById('end-panel').style.display='none';
+  document.getElementById('choice-box').classList.remove('on');
+  updateUI();
+}
+
+function updateUI(){
+  const pe=document.getElementById('phase-txt'),pb=document.getElementById('phase-bar');
+  pe.textContent=PHASES[G.phase];
+  const pp=G.phaseTime/PHASE_LEN;pb.style.width=(pp*100)+'%';
+  pb.style.background=G.phase>=3?'#ff6b6b':G.phase>=2?'#ff922b':G.phase>=1?'#ffd700':'#6bc5ff';
+  document.getElementById('mood-txt').textContent=G.mood>=80?'😄':G.mood>=50?'😊':G.mood>=30?'😐':G.mood>=10?'😢':'💀';
+  document.getElementById('mood-bar').style.width=G.mood+'%';
+  document.getElementById('mood-bar').style.background=G.mood>=50?'#ff922b':'#ff4444';
+  document.getElementById('eng-txt').textContent=G.energy>=80?'💪':G.energy>=50?'👍':G.energy>=20?'😮‍💨':'😵';
+  document.getElementById('eng-bar').style.width=G.energy+'%';
+  document.getElementById('eng-bar').style.background=G.energy>=50?'#51cf66':'#ff4444';
+  document.getElementById('money-txt').textContent='¥'+G.money;
+  document.getElementById('star-txt').textContent='⭐'+G.rating.toFixed(1);
+}
+
+// ─── SPAWN CUSTOMER ──────────────────────────
+function spawnCustomer(){
+  if(G.customer)return;
+  const ck=pickCType(),ct=CT[ck];
+  G.customer={key:ck,...ct,patience:ct.pat+Math.floor(Math.random()*20-10),items:[],threat:false,pos:'door',browseT:0};
+  const n=ct.items[0]+Math.floor(Math.random()*(ct.items[1]-ct.items[0]+1));
+  const pool=[...ITEMS];
+  for(let i=0;i<n;i++)G.customer.items.push({...pool[Math.floor(Math.random()*pool.length)],scanned:false});
+  G.items=G.customer.items.map((it,i)=>({...it,scanned:false,bagged:false}));
+  G.scanned=[];G.bagged=[];
+  G.step='entering';G.patience=G.customer.patience;G.patienceRate=G.customer.thief?0.7:G.customer.key==='difficult'?0.45:G.customer.key==='kid'?0.55:0.2;
+  G.thiefMode=!!G.customer.thief;
+  hideBtns();
+  D(G.customer.desc);
+}
+
+// ─── ACTIONS ──────────────────────────────────
+function scanItem(idx){
+  if(G.step!=='scanning'||idx>=G.items.length)return;
+  const it=G.items[idx];if(it.scanned)return;
+  it.scanned=true;G.scanned.push(it);
+  sBeep();P(G._itemX(idx),G._itemY(),'#51cf66',5);
+  G.flash=0.1;G.energy=Math.max(0,G.energy-0.3);
+  if(G.scanned.length>=G.items.length){G.step='bagging';hideBtns();showB('btn-bag')}
+  updateUI();
+}
+function bagAll(){
+  if(G.step!=='bagging')return;
+  G.bagged=[...G.scanned];G.step='paying';
+  hideBtns();showB('btn-pay');G.energy=Math.max(0,G.energy-0.3);
+}
+function takePayment(){
+  if(G.step!=='paying'||!G.customer)return;
+  const total=G.scanned.reduce((s,i)=>s+i.p,0);
+  G.money+=total;G.customersServed++;sPay();P(W*0.45,H*0.38,'#ffd700',12);
+  if(Math.random()<G.customer.tip){const tip=Math.floor(total*0.2);G.money+=tip;G.tipsGot++;sTip();D('谢谢！零钱不用找了 💰');G.mood=Math.min(100,G.mood+4)}
+  G.mood=Math.min(100,Math.max(0,G.mood+G.customer.mood));
+  if(G.customer.thief&&!G.customer.threat){G.money=Math.max(0,G.money-total*2);G.mood=Math.max(0,G.mood-15);sBad();D('😱 东西被偷了！')}
+  else if(G.customer.thief&&G.customer.threat){G.thievesCaught++;G.mood=Math.min(100,G.mood+10);D('👮 小偷被你吓跑了！')}
+  G.step='leaving';G.customer.leavingT=0;
+  hideBtns();showB('btn-scan');
+  updateUI();
+}
+function watchThief(){if(!G.customer||!G.customer.thief||G.customer.threat)return;G.customer.threat=true;G.customer.patience+=25;sThief();D('呃...我什么都没拿...')}
+function petCat(){if(!G.cat)return;G.cat=false;G.catsPetted++;G.mood=Math.min(100,G.mood+20);sCat();P(W*0.08,H*0.78,'#ffd700',18);D('🐱 喵~心情+20!');G.event=null;G.idleT=0.4;hideBtns();showB('btn-scan');updateUI()}
+function cleanSpill(){if(!G.spill)return;G.spill=false;G.energy=Math.max(0,G.energy-3);G.rating=Math.min(5,G.rating+0.1);sClean();D('✨ 清理完成!');G.event=null;G.idleT=0.4;hideBtns();showB('btn-scan');updateUI()}
+function stockShelf(idx){
+  if(G.shelfState[idx]>=5)return;
+  G.shelfState[idx]++;G.energy=Math.max(0,G.energy-2);
+  sStock();P(W*0.6+idx*W*0.1,H*0.48,'#51cf66',6);
+  D('📦 货架补好了!');G.event=null;G.idleT=0.4;hideBtns();showB('btn-scan');updateUI();
+}
+function checkExpire(){
+  let found=false;
+  for(let i=0;i<G.shelfState.length;i++){if(G.shelfState[i]>=4&&Math.random()<0.5){G.shelfState[i]=Math.max(0,G.shelfState[i]-1);found=true;G.expiredFound++;G.rating=Math.min(5,G.rating+0.05);sExpire()}}
+  if(found){G.money+=3;D('📋 清理了过期商品! +¥3')}else{D('✅ 没有过期商品')}
+  G.energy=Math.max(0,G.energy-2);G.event=null;G.idleT=0.4;hideBtns();showB('btn-scan');updateUI();
+}
+function takeRest(){
+  G.energy=Math.min(100,G.energy+25);G.mood=Math.min(100,G.mood+5);
+  D('☕ 喝杯咖啡，休息片刻...');G.event=null;G.idleT=0.4;hideBtns();showB('btn-scan');updateUI();
+}
+
+// ─── UPDATE ──────────────────────────────────
+function update(dt){
+  if(G.step==='idle'&&!G.customer){
+    G.phaseTime+=dt;
+    if(G.phaseTime>=PHASE_LEN&&G.phase<3){G.phase++;G.phaseTime=0;updateUI()}
+    if(G.phase>=3&&G.phaseTime>=PHASE_LEN){endGame();return}
+    G.idleT-=dt;
+    if(G.idleT<=0&&!G.event){
+      const r=Math.random();
+      if(!G.cat&&r<0.1){G.cat=true;G.event='cat';G.eventT=4;hideBtns();showB('btn-pet');D('🐱 门口来了一只流浪猫...')}
+      else if(!G.spill&&r<0.22){G.spill=true;G.event='spill';G.eventT=4;hideBtns();showB('btn-clean');D('💧 地上有污渍需要清理')}
+      else if(G.shelfState.some(s=>s<3)&&r<0.34){G.event='stock';G.eventT=4;hideBtns();const si=G.shelfState.findIndex(s=>s<3);showB('btn-stock');D('📦 货架需要补货')}
+      else if(r<0.42){G.event='check';G.eventT=4;hideBtns();showB('btn-check');D('该检查保质期了...')}
+      else if(G.energy<50&&r<0.5){G.event='rest';G.eventT=4;hideBtns();showB('btn-rest');D('有点累了，要不要休息？')}
+      else{spawnCustomer();G.event=null}
+    }
+    if(G.event){G.eventT-=dt;if(G.eventT<=0){if(G.event==='cat')G.cat=false;if(G.event==='spill'){G.spill=false;G.rating=Math.max(1,G.rating-0.08)}G.event=null;hideBtns();showB('btn-scan');G.idleT=0.3}}
+  }
+
+  // Customer animation states
+  if(G.customer){
+    if(G.step==='entering'){G.customer.browseT+=dt;if(G.customer.browseT>1.2){G.step='browsing';G.customer.browseT=0;}}
+    else if(G.step==='browsing'){G.customer.browseT+=dt;if(G.customer.browseT>1.8){G.step='scanning';hideBtns();showB('btn-scan')}}
+    else if(G.step==='leaving'){G.customer.leavingT=(G.customer.leavingT||0)+dt;if(G.customer.leavingT>1.0){G.customer=null;G.items=[];G.scanned=[];G.bagged=[];G.step='idle';G.thiefMode=false;G.idleT=1+Math.random()*2;hideBtns();showB('btn-scan')}}
+
+    // Patience decay
+    if(G.step==='scanning'||G.step==='bagging'||G.step==='paying'){
+      G.patience-=G.patienceRate*dt;
+      if(G.patience<=0){G.mood=Math.max(0,G.mood-10);G.rating=Math.max(1,G.rating-0.2);sBad();D('太慢了！不买了！');G.customer=null;G.items=[];G.scanned=[];G.bagged=[];G.step='idle';G.thiefMode=false;G.idleT=1.5;hideBtns();showB('btn-scan')}
+    }
+  }
+
+  G.energy=Math.max(0,G.energy-dt*0.6);
+  if(G.energy<20&&G.mood>0)G.mood=Math.max(0,G.mood-dt*1.5);
+  G.animT+=dt;
+  for(const p of G.particles){p.x+=p.vx;p.y+=p.vy;p.vy+=100*S*dt;p.life-=p.decay}
+  G.particles=G.particles.filter(p=>p.life>0);
+  for(const p of G.pops){p.y+=p.vy;p.vy-=0.3*S;p.life-=dt}
+  G.pops=G.pops.filter(p=>p.life>0);
+  if(G.flash>0)G.flash=Math.max(0,G.flash-dt*2);
+  if(G.shake>0){G.shake*=Math.pow(0.03,dt);if(G.shake<0.05)G.shake=0}
+
+  // Step hint
+  const hint=document.getElementById('hint');
+  if(hint){
+    if(G.step==='scanning')hint.textContent='📷 点击下方扫码按钮（或点物品条码）';
+    else if(G.step==='bagging')hint.textContent='🛍️ 点击装袋';
+    else if(G.step==='paying')hint.textContent='💳 点击收款';
+    else if(G.step==='entering'||G.step==='browsing')hint.textContent='👤 客人正在挑选商品...';
+    else if(G.event==='cat')hint.textContent='🐱 快喂猫！';
+    else if(G.event==='spill')hint.textContent='💧 快清理！';
+    else if(G.event==='stock')hint.textContent='📦 快补货！';
+    else if(G.event==='check')hint.textContent='📋 检查保质期';
+    else if(G.event==='rest')hint.textContent='☕ 休息一下';
+    else hint.textContent='';
+  }
+
+  updateUI();
+}
+
+G._itemX=function(i){return W*0.28+i*W*0.15}
+G._itemY=function(){return H*0.43}
+
+// ─── RENDER ───────────────────────────────────
+const LIGHTS={pos:[{x:0.2,y:0.08},{x:0.5,y:0.08},{x:0.8,y:0.08}],flicker:[0,0,0]};
+for(let i=0;i<3;i++)LIGHTS.flicker[i]=0.98+Math.random()*0.04;
+
+function render(){
+  ctx.clearRect(0,0,W,H);
+  const sx=G.shake*(Math.random()*2-1),sy=G.shake*(Math.random()*2-1);
+  ctx.save();ctx.translate(sx,sy);
+
+  const isDay=G.phase<3;
+  const wallC=isDay?'#f5edd6':'#3a3a48',wall2C=isDay?'#ede0c0':'#2e2e3a';
+  const floorC=isDay?'#e8dcc4':'#2a2a35',floorLC=isDay?'#dcd0b4':'#353545';
+
+  // Ceiling
+  ctx.fillStyle=isDay?'#faf6ec':'#3e3e4e';ctx.fillRect(0,0,W,H*0.08);
+  // Ceiling lights
+  for(const l of LIGHTS.pos){
+    const fl=LIGHTS.flicker[LIGHTS.pos.indexOf(l)];
+    ctx.fillStyle=`rgba(255,248,220,${0.3*fl})`;ctx.fillRect(l.x*W-W*0.12,l.y*W,W*0.24,H*0.06);
+    ctx.fillStyle=`rgba(255,255,240,${0.6*fl})`;ctx.fillRect(l.x*W-W*0.06,l.y*W+2,W*0.12,3*S);
+  }
+
+  // Wall
+  ctx.fillStyle=wallC;ctx.fillRect(0,H*0.08,W,H*0.55);
+  // Wall stripe
+  const stripeY=H*0.32;
+  ctx.fillStyle=wall2C;ctx.fillRect(0,stripeY,W,H*0.06);
+  ctx.strokeStyle=isDay?'#d4c8a8':'#444';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,stripeY+H*0.03);ctx.lineTo(W,stripeY+H*0.03);ctx.stroke();
+
+  // Shelves (3 aisles on right)
+  for(let si=0;si<3;si++){
+    const sx=W*0.62+si*W*0.12,shY=H*0.15,shH=H*0.28;
+    ctx.fillStyle=isDay?'#d4c0a0':'#4a4a58';
+    ctx.fillRect(sx,shY,W*0.1,shH);
+    ctx.strokeStyle=isDay?'#b89878':'#555';ctx.lineWidth=2;
+    ctx.strokeRect(sx,shY,W*0.1,shH);
+    // Shelf boards
+    for(let lv=1;lv<=4;lv++){
+      const ly=shY+lv*shH/5;
+      ctx.fillStyle=isDay?'#c8b088':'#525260';
+      ctx.fillRect(sx-2,ly,W*0.1+4,3*S);
+      // Products (stable positions based on shelfIndex*level, not random)
+      const stock=G.shelfState[si];
+      for(let b=0;b<stock;b++){
+        const bx=sx+4*S+b*12*S,by=ly-8*S;
+        const colors=['#ff6b6b','#6bc5ff','#51cf66','#ffd43b','#ff922b'];
+        ctx.fillStyle=colors[(si*7+lv*3+b)%colors.length];
+        ctx.fillRect(bx,by,9*S,8*S);
+        ctx.strokeStyle='rgba(0,0,0,0.15)';ctx.lineWidth=0.5;ctx.strokeRect(bx,by,9*S,8*S);
+      }
+    }
+    // Stock warning
+    if(G.shelfState[si]===0){ctx.strokeStyle='rgba(255,80,0,0.4)';ctx.lineWidth=2;ctx.setLineDash([3,3]);ctx.strokeRect(sx,shY,W*0.1,shH);ctx.setLineDash([])}
+  }
+
+  // Counter / Register
+  const cY=H*0.51,cH=H*0.14;
+  const cGrad=ctx.createLinearGradient(0,cY,0,cY+cH);
+  cGrad.addColorStop(0,isDay?'#f0e4cc':'#525260');cGrad.addColorStop(0.25,isDay?'#e8d8b8':'#484858');
+  cGrad.addColorStop(1,isDay?'#d4c098':'#3c3c4a');
+  ctx.fillStyle=cGrad;ctx.fillRect(0,cY,W,cH);
+  ctx.fillStyle=isDay?'#faf0dc':'#5c5c6c';ctx.fillRect(0,cY,W,3*S);
+  ctx.strokeStyle=isDay?'#c8b080':'#555';ctx.lineWidth=2;ctx.strokeRect(W*0.02,cY,W*0.96,cH-3*S);
+  // Register machine
+  const regX=W*0.55,regY=cY-10*S;
+  ctx.fillStyle='#555';RR(ctx,regX,regY,40*S,25*S,5);ctx.fill();
+  ctx.fillStyle='#333';ctx.fillRect(regX+5*S,regY+2*S,30*S,18*S);
+  ctx.fillStyle='#4af';ctx.fillRect(regX+8*S,regY+4*S,24*S,12*S);
+  ctx.fillStyle='#fff';ctx.font=`bold ${8*S}px monospace`;ctx.textAlign='center';
+  ctx.fillText('¥0.00',regX+20*S,regY+14*S);
+
+  // Conveyor belt area
+  const beltX=W*0.06,beltW=W*0.45,beltY=cY+20*S,beltH=10*S;
+  ctx.fillStyle='#1a1a1a';ctx.fillRect(beltX,beltY,beltW,beltH);
+  ctx.fillStyle='#252525';ctx.fillRect(beltX,beltY+2*S,beltW,beltH-4*S);
+  const bPhase=G.animT*80%40;
+  ctx.strokeStyle='#333';ctx.lineWidth=1;
+  for(let bx=beltX-bPhase;bx<beltX+beltW;bx+=35*S){
+    ctx.beginPath();ctx.moveTo(bx,beltY+2*S);ctx.lineTo(bx+9*S,beltY+beltH-2*S);ctx.stroke();
+  }
+
+  // Items on belt
+  for(let i=0;i<G.items.length;i++){
+    const it=G.items[i];
+    const ix=beltX+35*S+i*(beltW/(G.items.length+1));
+    const iy=beltY-28*S;
+    // Body
+    ctx.fillStyle=it.c;RR(ctx,ix-13*S,iy-18*S,26*S,28*S,5);ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,0.18)';ctx.lineWidth=1;RR(ctx,ix-13*S,iy-18*S,26*S,28*S,5);ctx.stroke();
+    ctx.font=`${16*S}px sans-serif`;ctx.textAlign='center';
+    ctx.fillText(it.e,ix,iy-1*S);
+    ctx.fillStyle='#333';ctx.font=`${7*S}px "PingFang SC","Microsoft YaHei",sans-serif`;
+    ctx.fillText(it.n,ix,iy+20*S);
+
+    // Barcode
+    const bx=ix+14*S,by=iy-10*S;
+    ctx.fillStyle='#fff';ctx.fillRect(bx,by-3*S,5*S,18*S);
+    ctx.fillStyle='#000';
+    for(let l=0;l<5;l++){ctx.fillRect(bx+0.5*S,by-1*S+l*3.5*S,4*S,1.2*S);ctx.fillRect(bx+2*S,by+l*3.5*S,1.5*S,1.2*S)}
+    // Scan glow
+    if(G.step==='scanning'&&!it.scanned){
+      ctx.strokeStyle=`rgba(81,207,102,${0.35+Math.sin(Date.now()*0.008)*0.2})`;ctx.lineWidth=2;ctx.setLineDash([2,2]);
+      ctx.strokeRect(bx-2*S,by-5*S,9*S,22*S);ctx.setLineDash([]);
+    }
+    if(it.scanned){ctx.fillStyle='#51cf66';ctx.font=`bold ${14*S}px sans-serif`;ctx.fillText('✓',ix+16*S,iy-20*S)}
+  }
+
+  // Customer
+  if(G.customer){
+    let cx,cy;
+    if(G.step==='entering'){const t=G.customer.browseT/1.2;cx=W*0.12+(W*0.62-W*0.12)*t;cy=H*0.65}
+    else if(G.step==='browsing'){const si=Math.floor(G.animT*2)%3;cx=W*0.67+si*W*0.12;cy=H*0.35}
+    else{cx=W*0.48;cy=H*0.64}
+    const bob=Math.sin(G.animT*2.5)*2*S;
+    ctx.font=`${44*S}px sans-serif`;ctx.textAlign='center';
+    ctx.fillText(G.customer.emoji,cx,cy+bob);
+    // Name
+    ctx.fillStyle=isDay?'#333':'#ddd';ctx.font=`${10*S}px "PingFang SC","Microsoft YaHei",sans-serif`;
+    ctx.fillText(G.customer.name,cx,cy+28*S);
+
+    // Patience bar
+    if(G.step==='scanning'||G.step==='bagging'||G.step==='paying'){
+      const pw=70*S,px=cx-pw/2,py=cy-42*S;
+      ctx.fillStyle='rgba(0,0,0,0.4)';ctx.fillRect(px,py,pw,5*S);
+      ctx.fillStyle=G.patience>60?'#51cf66':G.patience>30?'#ff922b':'#ff4444';
+      ctx.fillRect(px,py,pw*(G.patience/100),5*S);
+    }
+    // Thief glow
+    if(G.customer.thief&&!G.customer.threat&&Math.sin(Date.now()*0.025)>0){
+      ctx.fillStyle='rgba(255,0,0,0.12)';ctx.beginPath();ctx.arc(cx,cy,35*S,0,Math.PI*2);ctx.fill();
+      showB('btn-watch');
+    }
+  }
+
+  // Door (left)
+  const dX=W*0.02,dY=H*0.4,dW=50*S,dH=H*0.25;
+  ctx.fillStyle=isDay?'#a0c8e8':'#3a4050';ctx.fillRect(dX,dY,dW,dH);
+  ctx.strokeStyle=isDay?'#7898a8':'#555';ctx.lineWidth=3;ctx.strokeRect(dX,dY,dW,dH);
+  ctx.fillStyle='#fff';ctx.fillRect(dX+dW-16*S,dY+dH*0.4,12*S,dH*0.58);
+  ctx.fillStyle='#51cf66';ctx.font=`bold ${8*S}px sans-serif`;ctx.textAlign='center';
+  ctx.fillText('OPEN',dX+dW/2,dY-5*S);
+
+  // Cat
+  if(G.cat){
+    const catX=dX+dW/2,catY=dY+dH-2*S;
+    ctx.font=`${26*S}px sans-serif`;ctx.textAlign='center';
+    ctx.fillText('🐱',catX+Math.sin(Date.now()*0.004)*3*S,catY);
+    ctx.fillStyle='rgba(255,215,0,0.18)';ctx.beginPath();ctx.arc(catX,catY,22*S,0,Math.PI*2);ctx.fill();
+  }
+
+  // Spill
+  if(G.spill){
+    const spX=W*0.35,spY=H*0.73;
+    ctx.fillStyle='rgba(120,70,30,0.5)';ctx.beginPath();ctx.ellipse(spX,spY,30*S,12*S,0.1,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(140,80,40,0.25)';ctx.beginPath();ctx.ellipse(spX-4*S,spY-3*S,20*S,8*S,0.2,0,Math.PI*2);ctx.fill();
+  }
+
+  // Break room door (bottom right)
+  const bdX=W*0.78,bdY=H*0.73,bdW=36*S,bdH=H*0.18;
+  ctx.fillStyle=isDay?'#d4c0a0':'#4a4a58';ctx.fillRect(bdX,bdY,bdW,bdH);
+  ctx.strokeStyle=isDay?'#b89878':'#555';ctx.lineWidth=2;ctx.strokeRect(bdX,bdY,bdW,bdH);
+  ctx.fillStyle=isDay?'#c8b088':'#525260';ctx.fillRect(bdX+4*S,bdY+4*S,bdW-8*S,bdH-8*S);
+  ctx.fillStyle=isDay?'#666':'#999';ctx.font=`bold ${7*S}px sans-serif`;ctx.textAlign='center';
+  ctx.fillText('休息室',bdX+bdW/2,bdY+bdH/2+4*S);
+
+  // Floor
+  ctx.fillStyle=floorC;ctx.fillRect(0,H*0.65,W,H*0.35);
+  for(let fx=0;fx<W;fx+=W/6){ctx.strokeStyle=floorLC;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(fx,H*0.65);ctx.lineTo(fx,H);ctx.stroke()}
+  for(let fy=H*0.65;fy<H;fy+=H*0.1){ctx.strokeStyle=floorLC;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,fy);ctx.lineTo(W,fy);ctx.stroke()}
+
+  // Window
+  const winX=W*0.77,winY=H*0.12,winW=W*0.18,winH=H*0.2;
+  ctx.fillStyle=isDay?'#87CEEB':'#1a1a30';ctx.fillRect(winX,winY,winW,winH);
+  ctx.strokeStyle='#888';ctx.lineWidth=3;ctx.strokeRect(winX,winY,winW,winH);
+  ctx.strokeStyle='#999';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(winX+winW/2,winY);ctx.lineTo(winX+winW/2,winY+winH);ctx.stroke();
+  if(!isDay){ctx.fillStyle='#ffd700';ctx.font=`${12*S}px sans-serif`;ctx.textAlign='center';ctx.fillText('🌙',winX+winW/4,winY+winH*0.6)}
+
+  // Particles
+  for(const p of G.particles){ctx.fillStyle=p.color.replace(')',`,${p.life})`).replace('rgb','rgba');ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill()}
+  // Popups
+  for(const p of G.pops){ctx.fillStyle=p.color.replace(')',`,${p.life})`).replace('rgb','rgba');ctx.font=`bold ${14*S}px "PingFang SC","Microsoft YaHei",sans-serif`;ctx.textAlign='center';ctx.fillText(p.text,p.x,p.y)}
+
+  // Flash overlay
+  if(G.flash>0){ctx.fillStyle=`rgba(81,207,102,${G.flash})`;ctx.fillRect(beltX,beltY-40*S,beltW,beltH+50*S)}
+
+  // Bottom info
+  ctx.fillStyle=isDay?'rgba(0,0,0,0.25)':'rgba(255,255,255,0.25)';
+  ctx.font=`${8*S}px "PingFang SC","Microsoft YaHei",sans-serif`;ctx.textAlign='center';
+  ctx.fillText(`已服务 ${G.customersServed}人 | 喂猫 ${G.catsPetted}次 | 抓贼 ${G.thievesCaught}次 | 清过期 ${G.expiredFound}件`,W/2,H*0.97);
+
+  ctx.restore();
+}
+
+// ─── END GAME ─────────────────────────────────
+function endGame(){
+  G.step='gameover';
+  const bonus=Math.floor(G.rating*8);
+  G.money+=bonus;
+  const panel=document.getElementById('end-panel');
+  panel.style.display='block';
+  document.getElementById('final-salary').textContent='¥'+G.money;
+  document.getElementById('final-detail').innerHTML=
+    `👥 服务:${G.customersServed}人 | 💰 小费:${G.tipsGot}次<br>🐱 喂猫:${G.catsPetted}次 | 👮 抓贼:${G.thievesCaught}次<br>📋 清过期:${G.expiredFound}件 | ⭐ 评分:${G.rating.toFixed(1)}`;
+  let rk;
+  if(G.money>=250)rk='🏆 本月最佳员工!';
+  else if(G.money>=160)rk='🥇 优秀店员';
+  else if(G.money>=90)rk='🥈 合格店员';
+  else if(G.money>=40)rk='🥉 还需努力';
+  else rk='📦 明天店长约谈...';
+  document.getElementById('rank-text').textContent=rk;
+  hideBtns();
+}
+
+function startGame(){
+  initGame();
+  document.getElementById('start-panel').parentElement.style.display='none';
+  document.getElementById('end-panel').style.display='none';
+  document.getElementById('choice-box').classList.remove('on');
+  hideBtns();showB('btn-scan');
+  if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();
+}
+
+// ─── INPUT ────────────────────────────────────
+canvas.addEventListener('click',e=>{
+  if(G.step!=='scanning')return;
+  const cx=e.clientX*devicePixelRatio,cy=e.clientY*devicePixelRatio;
+  const beltX=W*0.06,beltW=W*0.45,beltY=H*0.51+20*S;
+  for(let i=0;i<G.items.length;i++){
+    if(G.items[i].scanned)continue;
+    const ix=beltX+35*S+i*(beltW/(G.items.length+1));
+    if(Math.abs(cx-ix)<28*S&&Math.abs(cy-(beltY-28*S))<30*S){scanItem(i);break}
+  }
+});
+
+// Buttons
+['btn-scan','btn-bag','btn-pay','btn-watch','btn-pet','btn-clean','btn-stock','btn-check','btn-rest'].forEach(id=>{
+  const el=document.getElementById(id);
+  el.addEventListener('click',()=>{
+    if(id==='btn-scan'&&G.step==='scanning'){
+      // Scan ALL unscanned items at once
+      let any=false;
+      for(let i=0;i<G.items.length;i++){if(!G.items[i].scanned){scanItem(i);any=true}}
+      if(!any){// all scanned, advance to bagging
+        if(G.scanned.length>=G.items.length){G.step='bagging';hideBtns();showB('btn-bag')}
+      }
+    }
+    if(id==='btn-bag')bagAll();if(id==='btn-pay')takePayment();if(id==='btn-watch')watchThief();
+    if(id==='btn-pet')petCat();if(id==='btn-clean')cleanSpill();
+    if(id==='btn-stock'){const si=G.shelfState.findIndex(s=>s<3);if(si>=0)stockShelf(si)}
+    if(id==='btn-check')checkExpire();if(id==='btn-rest')takeRest();
+  });
+  el.addEventListener('touchend',e=>{e.preventDefault();el.click()});
+});
+document.getElementById('start-btn').addEventListener('click',startGame);
+document.getElementById('start-btn').addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();startGame()});
+document.getElementById('retry-btn').addEventListener('click',startGame);
+document.getElementById('retry-btn').addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();startGame()});
+
+// ─── MAIN ─────────────────────────────────────
+let lt=performance.now();
+function loop(t){const dt=Math.min(0.1,(t-lt)/1000);lt=t;update(dt);render();requestAnimationFrame(loop)}
+initGame();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
